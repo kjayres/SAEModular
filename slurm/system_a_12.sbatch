@@ -21,7 +21,7 @@ umask 027
 WORKSPACE_ROOT="/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0"
 PROJECT_ROOT="$WORKSPACE_ROOT/projects/saem_anchored_bayes"
 RSCRIPT_BIN="$WORKSPACE_ROOT/software/miniforge3/envs/model_fusion_r/bin/Rscript"
-OUTPUT_DIR="${SAB_SYSTEM_A_OUTPUT_DIR:-$PROJECT_ROOT/outputs/system_a_12_oracle_v1}"
+OUTPUT_DIR="${SAB_SYSTEM_A_OUTPUT_DIR:-$PROJECT_ROOT/outputs/system_a_12_oracle_rescue_v2}"
 
 [[ -x "$RSCRIPT_BIN" ]] || {
   printf 'Rscript is not executable: %s\n' "$RSCRIPT_BIN" >&2

@@ -5,9 +5,10 @@
 # This is deliberately not a deployable SAEM workflow and not a retained
 # posterior chain.  The target-matched full-joint comparator is used only to
 # choose a fixed global anchor, patient starting values, and the dynamic-psi
-# scale.  At that anchor, independent exact patient-conditional pCN chains fit
-# frozen affine maps.  A separate conditional bank then compares fixed-x and
-# affine endpoints using the certified VODE-BDF likelihood.
+# scale.  At that anchor, exact patient-conditional pCN chains fit frozen
+# moment maps.  A separate, independently seeded conditional bank then compares
+# fixed-x, conditional-mean, and affine endpoints using the certified VODE-BDF
+# likelihood.
 
 options(warn = 1)
 
@@ -491,12 +492,15 @@ sab_fit_patient_map <- function(patient_id, banks, design_z, anchor,
       design_z["minus_axis_2", "z2"] != -radius) {
     sab_stop("Patient map design is not symmetric around its anchor.")
   }
+  # A signed piecewise-linear basis reproduces all four trained axial endpoints
+  # exactly.  The earlier central-difference line did not pass through either
+  # endpoint when the conditional moments were curved or estimated with error.
   mean_coefficients <- cbind(
     intercept = means["center", ],
-    z1 = (means["plus_axis_1", ] - means["minus_axis_1", ]) /
-      (2 * radius),
-    z2 = (means["plus_axis_2", ] - means["minus_axis_2", ]) /
-      (2 * radius)
+    z1_positive = (means["plus_axis_1", ] - means["center", ]) / radius,
+    z1_negative = (means["minus_axis_1", ] - means["center", ]) / radius,
+    z2_positive = (means["plus_axis_2", ] - means["center", ]) / radius,
+    z2_negative = (means["minus_axis_2", ] - means["center", ]) / radius
   )
   rownames(mean_coefficients) <- local_names
 
@@ -513,10 +517,10 @@ sab_fit_patient_map <- function(patient_id, banks, design_z, anchor,
   }, numeric(nrow(lower_index))))
   chol_coefficients <- cbind(
     intercept = features["center", ],
-    z1 = (features["plus_axis_1", ] - features["minus_axis_1", ]) /
-      (2 * radius),
-    z2 = (features["plus_axis_2", ] - features["minus_axis_2", ]) /
-      (2 * radius)
+    z1_positive = (features["plus_axis_1", ] - features["center", ]) / radius,
+    z1_negative = (features["minus_axis_1", ] - features["center", ]) / radius,
+    z2_positive = (features["plus_axis_2", ] - features["center", ]) / radius,
+    z2_negative = (features["minus_axis_2", ] - features["center", ]) / radius
   )
 
   dynamic_names <- adapter$coordinate_names$dynamic_global
@@ -530,12 +534,21 @@ sab_fit_patient_map <- function(patient_id, banks, design_z, anchor,
     global_chol <- dynamic_chol
     coordinate_names <- local_names
     id <- patient_id
+    signed_basis <- function(z) {
+      c(
+        intercept = 1,
+        z1_positive = max(z[[1L]], 0),
+        z1_negative = max(-z[[1L]], 0),
+        z2_positive = max(z[[2L]], 0),
+        z2_negative = max(-z[[2L]], 0)
+      )
+    }
     sab_new_affine_map(
       mean_fn = function(global) {
         global <- sab_assert_named_vector(global, dynamic_names,
                                           "dynamic global state")
         z <- as.numeric(forwardsolve(global_chol, global - center))
-        value <- as.numeric(mean_coef %*% c(1, z))
+        value <- as.numeric(mean_coef %*% signed_basis(z))
         names(value) <- coordinate_names
         value
       },
@@ -543,7 +556,7 @@ sab_fit_patient_map <- function(patient_id, banks, design_z, anchor,
         global <- sab_assert_named_vector(global, dynamic_names,
                                           "dynamic global state")
         z <- as.numeric(forwardsolve(global_chol, global - center))
-        values <- as.numeric(chol_coef %*% c(1, z))
+        values <- as.numeric(chol_coef %*% signed_basis(z))
         diagonal <- index[, 1L] == index[, 2L]
         values[diagonal] <- exp(values[diagonal])
         value <- matrix(0, p, p)
@@ -554,6 +567,26 @@ sab_fit_patient_map <- function(patient_id, banks, design_z, anchor,
       check_at = dynamic_center
     )
   })
+  training_reconstruction_error <- max(vapply(
+    expected_design,
+    function(design_name) {
+      global <- dynamic_center + as.numeric(
+        dynamic_chol %*% design_z[design_name, ]
+      )
+      names(global) <- dynamic_names
+      fitted_components <- sab_affine_map_components(map, global)
+      max(
+        abs(fitted_components$mean - means[design_name, ]),
+        abs(fitted_components$chol - cholesky[[design_name]]$chol)
+      )
+    },
+    numeric(1L)
+  ))
+  if (!is.finite(training_reconstruction_error) ||
+      training_reconstruction_error > 1e-9) {
+    sab_stop("Piecewise map does not reproduce its fitted axial moments for ",
+             patient_id, ".")
+  }
   list(
     map = map,
     coefficients = list(
@@ -561,6 +594,7 @@ sab_fit_patient_map <- function(patient_id, banks, design_z, anchor,
       chol = chol_coefficients,
       lower_index = lower_index
     ),
+    training_reconstruction_error = training_reconstruction_error,
     covariance_diagnostics = data.frame(
       design = rownames(design_z),
       raw_min_eigenvalue = vapply(
@@ -599,7 +633,7 @@ sab_patient_endpoints <- function(adapter, patient_id, eta, psi_center,
                                   dynamic_center, moves, heldout, map) {
   n_draw <- nrow(heldout$draws)
   n_move <- nrow(moves)
-  methods <- c("fixed_x", "affine")
+  methods <- c("fixed_x", "conditional_mean", "affine")
   output <- setNames(lapply(methods, function(method) {
     list(
       work = matrix(NA_real_, nrow = n_draw, ncol = n_move),
@@ -615,6 +649,7 @@ sab_patient_endpoints <- function(adapter, patient_id, eta, psi_center,
     sab_stop("Held-out patient bank has non-finite population density.")
   }
   current_logdet <- sab_affine_log_abs_det(map, dynamic_center)
+  current_map_mean <- sab_affine_map_components(map, dynamic_center)$mean
 
   for (move_index in seq_len(n_move)) {
     proposed_dynamic <- c(
@@ -624,12 +659,15 @@ sab_patient_endpoints <- function(adapter, patient_id, eta, psi_center,
     proposed_psi <- psi_center
     proposed_psi[names(proposed_dynamic)] <- proposed_dynamic
     proposed_logdet <- sab_affine_log_abs_det(map, proposed_dynamic)
+    proposed_map_mean <- sab_affine_map_components(map, proposed_dynamic)$mean
     for (draw_index in seq_len(n_draw)) {
       current_x <- heldout$draws[draw_index, ]
       names(current_x) <- adapter$coordinate_names$local
       for (method in methods) {
         proposed_x <- if (method == "fixed_x") {
           current_x
+        } else if (method == "conditional_mean") {
+          current_x + proposed_map_mean - current_map_mean
         } else {
           sab_affine_transport(
             map, current_x, dynamic_center, proposed_dynamic
@@ -649,10 +687,15 @@ sab_patient_endpoints <- function(adapter, patient_id, eta, psi_center,
           proposed_population <- adapter$log_population_density(
             patient_id, proposed_x, eta
           )
+          log_jacobian_difference <- if (method == "affine") {
+            proposed_logdet - current_logdet
+          } else {
+            0
+          }
           output[[method]]$work[draw_index, move_index] <-
-            evaluation$loglik + proposed_population + proposed_logdet -
-            heldout$loglik[[draw_index]] -
-            current_population[[draw_index]] - current_logdet
+            evaluation$loglik + proposed_population -
+            heldout$loglik[[draw_index]] - current_population[[draw_index]] +
+            log_jacobian_difference
         }
       }
     }
@@ -700,8 +743,14 @@ sab_work_diagnostics <- function(patient_results, moves) {
           } else {
             NA_real_
           },
+          log_mean_exp_work = log_normalizer,
           d2_forward = forward_d2,
           d2_reverse_importance = reverse_d2,
+          log_mean_exp_half_difference = abs(diff(vapply(
+            halves,
+            function(index) sab_log_mean_exp(work[index]),
+            numeric(1L)
+          ))),
           d2_forward_half_difference = abs(diff(half_forward)),
           d2_reverse_half_difference = abs(diff(half_reverse)),
           stringsAsFactors = FALSE
@@ -710,6 +759,64 @@ sab_work_diagnostics <- function(patient_results, moves) {
     }
   }
   do.call(rbind, rows)
+}
+
+sab_transport_invariance_diagnostics <- function(patient_diagnostics) {
+  groups <- split(
+    patient_diagnostics,
+    interaction(
+      patient_diagnostics$patient_id,
+      patient_diagnostics$move_id,
+      drop = TRUE
+    )
+  )
+  output <- do.call(rbind, lapply(groups, function(group) {
+    estimates <- setNames(group$log_mean_exp_work, group$method)
+    data.frame(
+      patient_id = group$patient_id[[1L]],
+      move_id = group$move_id[[1L]],
+      scale = group$scale[[1L]],
+      axis = group$axis[[1L]],
+      sign = group$sign[[1L]],
+      method_log_normalizer_range = if (all(is.finite(estimates))) {
+        diff(range(estimates))
+      } else {
+        Inf
+      },
+      maximum_method_half_difference =
+        max(group$log_mean_exp_half_difference),
+      stringsAsFactors = FALSE
+    )
+  }))
+  rownames(output) <- NULL
+  output
+}
+
+sab_center_map_diagnostics <- function(patient_tasks, maps, dynamic_center) {
+  output <- do.call(rbind, lapply(names(patient_tasks), function(patient_id) {
+    fit <- sab_affine_map_components(maps[[patient_id]], dynamic_center)
+    heldout <- patient_tasks[[patient_id]]$heldout$draws
+    heldout_mean <- colMeans(heldout)
+    mean_difference <- as.numeric(forwardsolve(
+      fit$chol, heldout_mean - fit$mean
+    ))
+    heldout_covariance <- stats::cov(heldout)
+    left_whitened <- forwardsolve(fit$chol, heldout_covariance)
+    whitened_covariance <- t(forwardsolve(fit$chol, t(left_whitened)))
+    data.frame(
+      patient_id = patient_id,
+      whitened_mean_distance = sqrt(sum(mean_difference^2)),
+      whitened_covariance_frobenius = sqrt(sum(
+        (whitened_covariance - diag(nrow(whitened_covariance)))^2
+      )),
+      maximum_whitened_variance_error = max(abs(
+        diag(whitened_covariance) - 1
+      )),
+      stringsAsFactors = FALSE
+    )
+  }))
+  rownames(output) <- NULL
+  output
 }
 
 sab_aggregate_work_diagnostics <- function(patient_diagnostics) {
@@ -881,7 +988,7 @@ sab_replay_summary <- function(adapter, eta, psi_center, patient_results,
 command_args <- commandArgs(trailingOnly = TRUE)
 output_dir <- if (length(command_args) == 1L) command_args[[1L]] else {
   if (length(command_args) > 1L) sab_stop("Expected at most one output path.")
-  file.path("outputs", "system_a_12_oracle_v1")
+  file.path("outputs", "system_a_12_oracle_rescue_v2")
 }
 workspace_root <- Sys.getenv("SAB_WORKSPACE_ROOT", unset = "")
 if (!nzchar(workspace_root) || !dir.exists(workspace_root)) {
@@ -900,18 +1007,19 @@ source(file.path("R", "transport_mh.R"), local = FALSE)
 source(file.path("R", "system_a_adapter.R"), local = FALSE)
 
 config <- list(
-  schema_version = "sab_system_a_12_oracle_config_v1",
+  schema_version = "sab_system_a_12_oracle_config_v2",
   declaration = paste(
-    "ORACLE 12-patient endpoint replay; comparator anchor/scale;",
-    "not SAEM, not a retained chain, not deployable proof"
+    "ORACLE 12-patient endpoint rescue; longer banks and exact axial",
+    "interpolation; comparator anchor/scale; not SAEM, not a retained chain,",
+    "not deployable proof"
   ),
   map_radius = sab_numeric_env("SAB_SYSA_MAP_RADIUS", 1.0, 0.1, 2.0),
-  map_warmup = sab_integer_env("SAB_SYSA_MAP_WARMUP", 750L, 50L),
-  map_draws = sab_integer_env("SAB_SYSA_MAP_DRAWS", 1000L, 100L),
+  map_warmup = sab_integer_env("SAB_SYSA_MAP_WARMUP", 2000L, 50L),
+  map_draws = sab_integer_env("SAB_SYSA_MAP_DRAWS", 12000L, 100L),
   map_thin = sab_integer_env("SAB_SYSA_MAP_THIN", 1L, 1L),
-  heldout_warmup = sab_integer_env("SAB_SYSA_HELDOUT_WARMUP", 750L, 50L),
-  heldout_draws = sab_integer_env("SAB_SYSA_HELDOUT_DRAWS", 500L, 100L),
-  heldout_thin = sab_integer_env("SAB_SYSA_HELDOUT_THIN", 1L, 1L),
+  heldout_warmup = sab_integer_env("SAB_SYSA_HELDOUT_WARMUP", 2000L, 50L),
+  heldout_draws = sab_integer_env("SAB_SYSA_HELDOUT_DRAWS", 3000L, 100L),
+  heldout_thin = sab_integer_env("SAB_SYSA_HELDOUT_THIN", 2L, 1L),
   initial_pcn_beta = sab_numeric_env(
     "SAB_SYSA_INITIAL_PCN_BETA", 0.20, 0.005, 0.95
   ),
@@ -923,12 +1031,12 @@ config <- list(
     "SAB_SYSA_COVARIANCE_FLOOR", 1e-6, 1e-12, 1e-2
   ),
   proposal_scales = c(0.5, 1.0),
-  minimum_bank_ess = sab_numeric_env("SAB_SYSA_MIN_BANK_ESS", 25, 1, Inf),
+  minimum_bank_ess = sab_numeric_env("SAB_SYSA_MIN_BANK_ESS", 50, 1, Inf),
   minimum_efficiency_ratio = sab_numeric_env(
     "SAB_SYSA_MIN_EFFICIENCY_RATIO", 1.5, 1, Inf
   ),
-  minimum_affine_acceptance = sab_numeric_env(
-    "SAB_SYSA_MIN_AFFINE_ACCEPTANCE", 0.15, 0, 1
+  minimum_transport_acceptance = sab_numeric_env(
+    "SAB_SYSA_MIN_TRANSPORT_ACCEPTANCE", 0.15, 0, 1
   ),
   maximum_solver_failure_rate = sab_numeric_env(
     "SAB_SYSA_MAX_SOLVER_FAILURE", 0.05, 0, 1
@@ -1067,6 +1175,9 @@ fitted <- setNames(lapply(patient_tasks, function(task) {
   )
 }), panel$patient_id)
 maps <- lapply(fitted, `[[`, "map")
+center_map_diagnostics <- sab_center_map_diagnostics(
+  patient_tasks, maps, dynamic_center
+)
 message("Fitted and froze all twelve patient maps.")
 
 bank_diagnostics <- do.call(rbind, lapply(patient_tasks, function(task) {
@@ -1142,6 +1253,8 @@ names(endpoint_results) <- panel$patient_id
 
 work_diagnostics <- sab_work_diagnostics(endpoint_results, moves)
 aggregate_work_diagnostics <- sab_aggregate_work_diagnostics(work_diagnostics)
+transport_invariance_diagnostics <-
+  sab_transport_invariance_diagnostics(work_diagnostics)
 replay <- sab_replay_summary(
   adapter, anchor$eta, anchor$psi, endpoint_results, moves,
   seed = config$replay_seed
@@ -1151,37 +1264,62 @@ scale_one <- replay$by_scale[replay$by_scale$scale == 1, , drop = FALSE]
 fixed_efficiency <- scale_one$expected_esjd_per_ode[
   scale_one$method == "fixed_x"
 ]
-affine_efficiency <- scale_one$expected_esjd_per_ode[
-  scale_one$method == "affine"
-]
-affine_acceptance <- scale_one$expected_acceptance[
-  scale_one$method == "affine"
-]
-affine_failure <- scale_one$solver_failure_rate[
-  scale_one$method == "affine"
-]
-if (length(fixed_efficiency) != 1L || length(affine_efficiency) != 1L ||
-    length(affine_acceptance) != 1L || length(affine_failure) != 1L) {
+transport_methods <- c("conditional_mean", "affine")
+transport_efficiency <- setNames(vapply(transport_methods, function(method) {
+  scale_one$expected_esjd_per_ode[scale_one$method == method]
+}, numeric(1L)), transport_methods)
+transport_acceptance <- setNames(vapply(transport_methods, function(method) {
+  scale_one$expected_acceptance[scale_one$method == method]
+}, numeric(1L)), transport_methods)
+transport_failure <- setNames(vapply(transport_methods, function(method) {
+  scale_one$solver_failure_rate[scale_one$method == method]
+}, numeric(1L)), transport_methods)
+if (length(fixed_efficiency) != 1L || !is.finite(fixed_efficiency) ||
+    any(!is.finite(transport_efficiency)) ||
+    any(!is.finite(transport_acceptance)) ||
+    any(!is.finite(transport_failure))) {
   sab_stop("One-standard-deviation replay summary is incomplete.")
 }
-efficiency_ratio <- if (fixed_efficiency > 0) {
-  affine_efficiency / fixed_efficiency
-} else if (affine_efficiency > 0) {
-  Inf
+efficiency_ratios <- if (fixed_efficiency > 0) {
+  transport_efficiency / fixed_efficiency
 } else {
-  NA_real_
+  setNames(
+    rep(NA_real_, length(transport_efficiency)),
+    names(transport_efficiency)
+  )
 }
+best_method <- names(transport_efficiency)[which.max(transport_efficiency)]
+best_efficiency_ratio <- efficiency_ratios[[best_method]]
+best_acceptance <- transport_acceptance[[best_method]]
+best_failure <- transport_failure[[best_method]]
 bank_adequate <- all(
   bank_diagnostics$minimum_coordinate_ess >= config$minimum_bank_ess
 ) && all(bank_diagnostics$sampling_acceptance > 0.01) &&
   all(bank_diagnostics$sampling_acceptance < 0.99)
-mechanism_pass <- isTRUE(bank_adequate) && !is.na(efficiency_ratio) &&
-  efficiency_ratio >= config$minimum_efficiency_ratio &&
-  affine_acceptance >= config$minimum_affine_acceptance &&
-  affine_failure <= config$maximum_solver_failure_rate
+selected_aggregate <- aggregate_work_diagnostics[
+  aggregate_work_diagnostics$method == best_method &
+    aggregate_work_diagnostics$scale == 1,
+  ,
+  drop = FALSE
+]
+diagnostics_finite <- nrow(selected_aggregate) == 4L &&
+  all(selected_aggregate$all_patient_work_finite) &&
+  all(selected_aggregate$all_diagnostics_finite) &&
+  all(is.finite(center_map_diagnostics$whitened_mean_distance)) &&
+  all(is.finite(
+    transport_invariance_diagnostics$method_log_normalizer_range[
+      transport_invariance_diagnostics$scale == 1
+    ]
+  ))
+mechanism_pass <- isTRUE(bank_adequate) &&
+  isTRUE(diagnostics_finite) &&
+  is.finite(best_efficiency_ratio) &&
+  best_efficiency_ratio >= config$minimum_efficiency_ratio &&
+  best_acceptance >= config$minimum_transport_acceptance &&
+  best_failure <= config$maximum_solver_failure_rate
 
 map_artifact <- list(
-  schema_version = "sab_system_a_frozen_map_v1",
+  schema_version = "sab_system_a_frozen_map_v2",
   declaration = config$declaration,
   target_fingerprint = adapter$target_fingerprint,
   patient_ids = panel$patient_id,
@@ -1194,13 +1332,16 @@ map_artifact <- list(
   ],
   design_z = design_z,
   coefficients = lapply(fitted, `[[`, "coefficients"),
+  training_reconstruction_error = setNames(vapply(
+    fitted, `[[`, numeric(1L), "training_reconstruction_error"
+  ), names(fitted)),
   covariance_relative_floor = config$covariance_relative_floor
 )
 anchor_artifact <- anchor
 anchor_artifact$candidate_dynamic <- NULL
 anchor_artifact$candidate_x <- NULL
 result <- list(
-  schema_version = "sab_system_a_12_oracle_result_v1",
+  schema_version = "sab_system_a_12_oracle_result_v2",
   completed_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
   slurm_job_id = Sys.getenv("SLURM_JOB_ID", unset = NA_character_),
   session_info = utils::capture.output(sessionInfo()),
@@ -1211,7 +1352,10 @@ result <- list(
   declaration = config$declaration,
   mechanism_pass = mechanism_pass,
   bank_adequate = bank_adequate,
-  efficiency_ratio_at_scale_one = efficiency_ratio,
+  diagnostics_finite = diagnostics_finite,
+  best_transport_method_at_scale_one = best_method,
+  best_efficiency_ratio_at_scale_one = best_efficiency_ratio,
+  method_efficiency_ratios_at_scale_one = efficiency_ratios,
   config = config,
   panel_sha256 = panel_sha256,
   panel_original_order = panel_original,
@@ -1234,6 +1378,8 @@ result <- list(
   patient_endpoint_results = endpoint_results,
   work_diagnostics = work_diagnostics,
   aggregate_work_diagnostics = aggregate_work_diagnostics,
+  transport_invariance_diagnostics = transport_invariance_diagnostics,
+  center_map_diagnostics = center_map_diagnostics,
   bank_exact_ode_calls = sum(bank_diagnostics$exact_ode_calls),
   replay_proposed_exact_ode_calls = sum(replay$by_move$proposed_exact_ode_calls)
 )
@@ -1255,13 +1401,25 @@ utils::write.csv(
   file.path(output_dir, "aggregate_work_diagnostics.csv"),
   row.names = FALSE
 )
+utils::write.csv(
+  transport_invariance_diagnostics,
+  file.path(output_dir, "transport_invariance_diagnostics.csv"),
+  row.names = FALSE
+)
+utils::write.csv(
+  center_map_diagnostics,
+  file.path(output_dir, "center_map_diagnostics.csv"),
+  row.names = FALSE
+)
 saveRDS(map_artifact, file.path(output_dir, "frozen_map.rds"), version = 3)
 saveRDS(result, file.path(output_dir, "result.rds"), version = 3)
 
 report <- c(
-  "System A affine transport: 12-patient ORACLE mechanism pilot",
+  "System A conditional transport: 12-patient ORACLE rescue screen",
   paste0("mechanism_pass: ", toupper(as.character(mechanism_pass))),
   paste0("bank_adequate: ", toupper(as.character(bank_adequate))),
+  paste0("selected-method diagnostics finite: ",
+         toupper(as.character(diagnostics_finite))),
   paste0("declaration: ", config$declaration),
   paste0("target fingerprint: ", adapter$target_fingerprint),
   paste0("upstream commit: ", adapter$source_validation$upstream_commit),
@@ -1273,10 +1431,23 @@ report <- c(
   sprintf("sampling acceptance range: %.3f--%.3f",
           min(bank_diagnostics$sampling_acceptance),
           max(bank_diagnostics$sampling_acceptance)),
+  sprintf("maximum independent-centre whitened mean discrepancy: %.3f",
+          max(center_map_diagnostics$whitened_mean_distance)),
+  sprintf("maximum axial training-moment reconstruction error: %.3g",
+          max(map_artifact$training_reconstruction_error)),
+  sprintf("maximum transport log-normalizer disagreement at zeta=1: %.3f",
+          max(transport_invariance_diagnostics$method_log_normalizer_range[
+            transport_invariance_diagnostics$scale == 1
+          ])),
+  sprintf("mean/fixed expected ESJD-per-ODE ratio at zeta=1: %.3f",
+          efficiency_ratios[["conditional_mean"]]),
   sprintf("affine/fixed expected ESJD-per-ODE ratio at zeta=1: %.3f",
-          efficiency_ratio),
-  sprintf("affine expected acceptance at zeta=1: %.3f", affine_acceptance),
-  sprintf("affine solver-failure rate at zeta=1: %.5f", affine_failure),
+          efficiency_ratios[["affine"]]),
+  paste0("best transported method at zeta=1: ", best_method),
+  sprintf("best/fixed expected ESJD-per-ODE ratio at zeta=1: %.3f",
+          best_efficiency_ratio),
+  sprintf("best expected acceptance at zeta=1: %.3f", best_acceptance),
+  sprintf("best solver-failure rate at zeta=1: %.5f", best_failure),
   sprintf(
     "affine total work-variance range at zeta=1: %.3f--%.3f",
     min(aggregate_work_diagnostics$total_work_variance[
@@ -1303,8 +1474,10 @@ report <- c(
   paste0("replay proposed exact ODE calls: ",
          result$replay_proposed_exact_ode_calls),
   paste(
-    "Interpretation: this pass/fail concerns only frozen-map endpoint",
-    "mechanics at an oracle anchor. It is not evidence for a SAEM handoff,",
+    "Interpretation: this exploratory pass/fail concerns only frozen-map",
+    "endpoint mechanics at an oracle anchor. Because method selection and",
+    "evaluation share one held-out replay bank, a pass does not by itself",
+    "authorize a 115-patient run. It is not evidence for a SAEM handoff,",
     "posterior correctness of a retained chain, or full-cohort scaling."
   ),
   paste(

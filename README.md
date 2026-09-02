@@ -32,11 +32,20 @@ is not claimed to be fully optimized. ESS is the script's transparent
 initial-positive-sequence estimate and is corroborated by ESJD and quadrature
 agreement.
 
-The next experiment is intentionally limited to the 12 previously audited
-System A patients. It compares fixed patient states with full eight-dimensional
-affine transport for identical dynamic-shared-parameter endpoints. It reports
+The System A experiment is intentionally limited to the 12 previously audited
+patients. It compares fixed patient states, conditional-mean translation, and
+full eight-dimensional affine transport for identical dynamic-shared-parameter
+endpoints. It reports
 exact VODE-BDF acceptance, whitened ESJD per proposed solve, solver failures,
 patient and aggregate work variance, and forward/reverse D2 diagnostics.
+
+The first short-bank pilot did **not** pass: full affine transport achieved only
+0.538 times the fixed-state ESJD per ODE at a one-standard-deviation endpoint.
+Its conditional banks also failed their independent quality gate (minimum
+coordinate ESS 4.4), and the original interpolation did not reproduce its own
+training endpoints. A single bounded rescue uses longer banks, exact axial
+interpolation, and the mean-only comparator. Full-cohort work remains gated on
+that result. See `RESULTS.md`.
 
 That System A experiment is an **oracle-anchor endpoint pilot**. It is not yet a
 SAEM handoff, retained posterior chain, bridge-sampling method, population
