@@ -1,8 +1,9 @@
 # SAEModular
 
-This research prototype tests whether an all-patient SAEM fit can anchor
-reusable patient messages for fast modular population inference. At fixed
-shared parameters, patient `i` contributes the raw-bank message
+This research prototype tests one idea: use an all-115-patient SAEM fit as a
+hierarchy-aware anchor, then turn independent exact patient-conditional banks
+into reusable messages for fast modular population inference. At fixed shared
+parameters, patient `i` contributes the raw-bank message
 
 ```text
 r_i(M, eta) = mean_s g_(i,M)(x_is | eta) / g_(i,A)(x_is | eta_A),
@@ -10,65 +11,35 @@ x_is ~ p(x_i | y_i, eta_A, psi_A).
 ```
 
 Once the exact conditional banks have been built, evaluating these messages is
-ODE-free. Raw-bank importance reweighting is tested first; no quadratic message
-surface is introduced before it validates.
+ODE-free. Raw-bank importance reweighting is tested first. Quadratic surfaces,
+transport maps, changing dynamic shared parameters, and retained full-cohort
+chains are deliberately outside the first test.
 
-The earlier affine-transport work was a bounded investigation of one possible
-shared-parameter extension. It is retained as evidence, not as the centre of
-the method.
+The first falsification sequence is:
 
-For frozen patient maps, the implemented proposal is
+1. fit the genuine all-patient SAEM anchor;
+2. freeze all four shared parameters at that anchor;
+3. build independent exact VODE-BDF conditional banks for the 12 audited
+   patients;
+4. calculate raw `g_new / g_anchor` messages without ODE calls;
+5. validate selected population endpoints with independent candidate banks and
+   bidirectional bridge estimates;
+6. proceed to all 115 patients only if overlap, replication, and accuracy pass.
 
-```text
-u_i     = L_i(c)^(-1) (x_i - m_i(c))
-x_i_new = m_i(c_new) + L_i(c_new) u_i
-```
+The frozen-bank posterior is a controlled Monte Carlo approximation, not an
+exact retained MCMC target. Independent banks, weight diagnostics, and bridge
+checks quantify whether that approximation is accurate enough. Dynamic shared
+parameter uncertainty is a later problem because changing those parameters
+requires new likelihood/ODE evaluations.
 
-It is corrected against the original joint density with the exact affine
-Jacobian. Approximate maps therefore affect efficiency, not the invariant
-posterior. The move must be combined with an exact local-patient refresh because
-it preserves every `u_i` and is not irreducible alone.
+## Earlier transport result
 
-## Current evidence
-
-The nonlinear decay toy passed a frozen robustness run against a high-accuracy
-quadrature posterior. Affine transport gave:
-
-- 2.676 times the fixed-state ESS per patient-likelihood call;
-- 1.780 times the fixed-state posterior-scaled ESJD;
-- split R-hat 1.0004;
-- posterior-mean error 0.0084 reference standard deviations.
-
-This validates the exact transport mechanism on the toy only. The affine tuning
-optimum was at the largest tested proposal scale, so the efficiency comparison
-is not claimed to be fully optimized. ESS is the script's transparent
-initial-positive-sequence estimate and is corroborated by ESJD and quadrature
-agreement.
-
-The System A experiment is intentionally limited to the 12 previously audited
-patients. It compares fixed patient states, conditional-mean translation, and
-full eight-dimensional affine transport for identical dynamic-shared-parameter
-endpoints. It reports
-exact VODE-BDF acceptance, whitened ESJD per proposed solve, solver failures,
-patient and aggregate work variance, and forward/reverse D2 diagnostics.
-
-The first short-bank pilot did **not** pass: full affine transport achieved only
-0.538 times the fixed-state ESJD per ODE at a one-standard-deviation endpoint.
-Its conditional banks also failed their independent quality gate (minimum
-coordinate ESS 4.4), and the original interpolation did not reproduce its own
-training endpoints.
-
-The bounded rescue corrected those defects and produced adequate banks. It
-still failed the predeclared 1.5-fold continuation gate: mean-only transport
-gave 1.366 times fixed-state ESJD per ODE and full affine transport gave 1.107.
-The mean effect was concentrated in the second whitened shared-parameter
-direction; covariance transport added no value. Full-cohort and retained-chain
-work is therefore stopped. See `RESULTS.md`.
-
-That System A experiment is an **oracle-anchor endpoint pilot**. It is not yet a
-SAEM handoff, retained posterior chain, bridge-sampling method, population
-parameter sampler, full-115 scaling result, or deployable proof. Its acceptance
-calculation assumes the audited symmetric additive proposal in dynamic `psi`.
+Before the message-first scope was clarified, this repository tested an exact
+affine global co-move. The nonlinear decay toy passed, but the corrected
+12-patient System A rescue missed its predeclared continuation gate: mean-only
+transport achieved 1.366 times fixed-state ESJD per ODE and full affine
+transport 1.107, below the required 1.5. That branch is stopped and retained
+only as negative evidence; see `RESULTS.md`.
 
 ## Layout
 
@@ -76,10 +47,13 @@ calculation assumes the audited symmetric additive proposal in dynamic `psi`.
 R/affine_map.R                 frozen affine-map primitives
 R/transport_mh.R               exact deterministic-transport MH kernel
 R/system_a_adapter.R           fail-closed adapter to the certified target
+R/system_a_patient_bank.R      exact fixed-anchor patient pCN banks
+R/patient_messages.R           raw-message and bridge estimators
 experiments/toy_decay.R        nonlinear toy validation
 experiments/system_a_12.R      12-patient oracle endpoint pilot
 config/system_a_saem_sources.sha256  pinned external SAEM inputs
 slurm/system_a_saem_anchor.sbatch    all-115 anchor-only SAEM fit
+slurm/test_core.sbatch              compute-node source/synthetic tests
 slurm/*.sbatch                 Oxford Statistics HPC launchers
 tests/testthat/                inverse, Jacobian, cache, and target checks
 ```
@@ -91,6 +65,7 @@ node.
 sbatch slurm/toy_decay.sbatch
 sbatch slurm/system_a_12.sbatch
 sbatch slurm/system_a_saem_anchor.sbatch
+sbatch slurm/test_core.sbatch
 ```
 
 Generated logs and RDS/CSV outputs are deliberately excluded from Git.
