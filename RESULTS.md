@@ -55,3 +55,60 @@ states, stop this dynamic-shared-parameter transport route for System A.
 This System A result is not evidence yet for a SAEM handoff, population-level
 posterior uncertainty, bridge sampling, retained-chain correctness, or
 patient-count scaling.
+
+## System A: bounded 12-patient rescue
+
+Rescue job: `121938` (27 minutes 10 seconds, 12 CPUs). Source snapshot:
+`cb34c71`. The job completed with exit code zero and all target and exact-kernel
+tests passing.
+
+The predeclared mechanism gate did **not** pass. The conditional banks did pass
+their quality gate, so this is more informative than the initial pilot.
+
+| Proposal radius | Fixed acceptance | Mean-only acceptance | Affine acceptance | Mean/fixed ESJD per ODE | Affine/fixed ESJD per ODE |
+|---:|---:|---:|---:|---:|---:|
+| 0.5 | 0.648 | 0.756 | 0.697 | 1.165 | 1.075 |
+| 1.0 | 0.408 | 0.557 | 0.452 | 1.366 | 1.107 |
+
+The continuation threshold was fixed at 1.5 times the fixed-state ESJD per ODE.
+Mean-only transport was the best method but reached only 1.366; full affine
+transport reached 1.107. The quality and numerical diagnostics were otherwise
+sound:
+
+- minimum coordinate ESS across map and held-out banks: 56.4;
+- maximum independent-centre whitened mean discrepancy: 0.431;
+- maximum held-out covariance discrepancy in whitened Frobenius norm: 0.828;
+- maximum axial training-moment reconstruction error: `3.33e-16`;
+- maximum cross-transport log-normalizer disagreement at radius 1: 0.117;
+- no mean-only or affine endpoint solver failures.
+
+The gain was directional. At radius 1, mean-only transport was essentially
+neutral for the first whitened shared-parameter axis (0.990 times fixed) and
+2.179 times fixed for the second axis. Mean transport reduced patient work
+variance for 11 of 12 patients, so that second-axis signal was not created by a
+single patient. Full covariance transport was consistently worse than moving
+the conditional mean alone. The useful second-axis diagnostics were stable
+across half-banks; a reverse-D2 half-bank discrepancy of 0.802 in the
+first-axis-minus move is an additional reason not to over-interpret the full
+average.
+
+Map and replay-bank construction cost 936,072 exact patient ODE calls, while
+the paired endpoint replay used 864,000 proposed ODE calls. This startup cost is
+far too large to justify a 1.366-fold endpoint gain unless the mean map can be
+obtained nearly for free from a preceding SAEM computation. Even excluding the
+held-out validation bank and anchor cost, the observed gain would require about
+190,000 one-standard-deviation mean co-move attempts to amortise the present
+map-fitting calls. A purpose-built mean-only fit could be cheaper, but was not
+tested here.
+
+Decision: do not run the 115-patient affine experiment or a retained System A
+chain. Freeze the full-affine branch. The next small System A test should target
+the hierarchy-conditioned local patient proposal at the current shared state,
+which directly addresses the audited 3.62% local-update acceptance. Mean-only
+global transport remains a possible later component for the second shared
+direction if a genuine SAEM handoff supplies its map cheaply.
+
+The rescue is still an oracle-anchor endpoint replay, not a SAEM implementation
+or a posterior sampler. It provides evidence for a limited conditional-mean
+effect, but not for fast population-level uncertainty or patient-count-invariant
+efficiency.

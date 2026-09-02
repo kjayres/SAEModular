@@ -43,9 +43,14 @@ The first short-bank pilot did **not** pass: full affine transport achieved only
 0.538 times the fixed-state ESJD per ODE at a one-standard-deviation endpoint.
 Its conditional banks also failed their independent quality gate (minimum
 coordinate ESS 4.4), and the original interpolation did not reproduce its own
-training endpoints. A single bounded rescue uses longer banks, exact axial
-interpolation, and the mean-only comparator. Full-cohort work remains gated on
-that result. See `RESULTS.md`.
+training endpoints.
+
+The bounded rescue corrected those defects and produced adequate banks. It
+still failed the predeclared 1.5-fold continuation gate: mean-only transport
+gave 1.366 times fixed-state ESJD per ODE and full affine transport gave 1.107.
+The mean effect was concentrated in the second whitened shared-parameter
+direction; covariance transport added no value. Full-cohort and retained-chain
+work is therefore stopped. See `RESULTS.md`.
 
 That System A experiment is an **oracle-anchor endpoint pilot**. It is not yet a
 SAEM handoff, retained posterior chain, bridge-sampling method, population
