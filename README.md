@@ -1,8 +1,21 @@
 # SAEModular
 
-This research prototype asks a narrow question: can patient transports learned
-around a SAEM-like anchor make exact global Bayesian MCMC substantially faster
-without changing the posterior target?
+This research prototype tests whether an all-patient SAEM fit can anchor
+reusable patient messages for fast modular population inference. At fixed
+shared parameters, patient `i` contributes the raw-bank message
+
+```text
+r_i(M, eta) = mean_s g_(i,M)(x_is | eta) / g_(i,A)(x_is | eta_A),
+x_is ~ p(x_i | y_i, eta_A, psi_A).
+```
+
+Once the exact conditional banks have been built, evaluating these messages is
+ODE-free. Raw-bank importance reweighting is tested first; no quadratic message
+surface is introduced before it validates.
+
+The earlier affine-transport work was a bounded investigation of one possible
+shared-parameter extension. It is retained as evidence, not as the centre of
+the method.
 
 For frozen patient maps, the implemented proposal is
 
@@ -65,6 +78,8 @@ R/transport_mh.R               exact deterministic-transport MH kernel
 R/system_a_adapter.R           fail-closed adapter to the certified target
 experiments/toy_decay.R        nonlinear toy validation
 experiments/system_a_12.R      12-patient oracle endpoint pilot
+config/system_a_saem_sources.sha256  pinned external SAEM inputs
+slurm/system_a_saem_anchor.sbatch    all-115 anchor-only SAEM fit
 slurm/*.sbatch                 Oxford Statistics HPC launchers
 tests/testthat/                inverse, Jacobian, cache, and target checks
 ```
@@ -75,6 +90,7 @@ node.
 ```bash
 sbatch slurm/toy_decay.sbatch
 sbatch slurm/system_a_12.sbatch
+sbatch slurm/system_a_saem_anchor.sbatch
 ```
 
 Generated logs and RDS/CSV outputs are deliberately excluded from Git.
