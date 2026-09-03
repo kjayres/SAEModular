@@ -8,8 +8,17 @@
 #
 #   log(Z_1 / Z_0) = log E_pi0[exp(log_weights)].
 #
+# For population messages, q_1 / q_0 reduces to
+#
+#   g_(i,M)(x | eta, z_i) / g_(i,A)(x | eta_A, z_i)
+#
+# when the observation model and shared parameters are fixed.  The population
+# densities may have any evaluable normalized form and may depend on model
+# structure and known patient covariates.  A product of patient messages assumes
+# that these densities factor by patient conditional on the global state.
 # These functions operate only on supplied log densities or log weights.  They
-# never evaluate an ODE and make no transport-map approximation.
+# never evaluate an ODE and make no Gaussian, diagonal, or transport-map
+# approximation.
 
 .sab_pm_validate_log_vector <- function(value,
                                         argument,
@@ -60,6 +69,198 @@
     )
   }
   as.integer(value)
+}
+
+#' Classical split-Rhat and multi-chain autocorrelation ESS
+#'
+#' These diagnose Markov-chain persistence and between-chain disagreement.
+#' They are deliberately separate from importance-weight ESS, which measures
+#' weight concentration and ignores draw order.  Rhat here is the classical
+#' split statistic (not rank-normalized); tail behaviour must be examined with
+#' the weight and split-message diagnostics as well.
+#'
+#' @param chains Named or unnamed list of at least two equal-length finite
+#'   numeric chain vectors.  Each chain must contain at least eight draws.
+#'
+#' @return Split-Rhat, Geyer initial-positive-sequence MCMC ESS, chain count,
+#'   split length, and the range of unsplit chain means.
+#' @export
+sab_mcmc_scalar_diagnostics <- function(chains) {
+  if (!is.list(chains) || length(chains) < 2L ||
+      any(!vapply(chains, is.numeric, logical(1L)))) {
+    stop("`chains` must be a list of at least two numeric vectors.",
+         call. = FALSE)
+  }
+  lengths <- vapply(chains, length, integer(1L))
+  if (length(unique(lengths)) != 1L || lengths[[1L]] < 8L ||
+      any(!vapply(chains, function(value) all(is.finite(value)), logical(1L)))) {
+    stop("MCMC chains must be finite, equal-length, and contain >= 8 draws.",
+         call. = FALSE)
+  }
+  half <- lengths[[1L]] %/% 2L
+  split_chains <- unlist(lapply(chains, function(value) {
+    list(value[seq_len(half)], tail(value, half))
+  }), recursive = FALSE)
+  draws <- do.call(cbind, split_chains)
+  n <- nrow(draws)
+  m <- ncol(draws)
+  chain_means <- colMeans(draws)
+  chain_variances <- apply(draws, 2L, stats::var)
+  within <- mean(chain_variances)
+  between <- n * stats::var(chain_means)
+  variance_plus <- (n - 1) / n * within + between / n
+  all_constant <- all(draws == draws[[1L]])
+  if (within == 0) {
+    split_rhat <- if (all_constant) 1 else Inf
+    mcmc_ess <- if (all_constant) n * m else 1
+  } else {
+    # Sampling variation can make the classical finite-sample estimate dip
+    # just below one.  Report the conventional lower-bounded value.
+    split_rhat <- max(1, sqrt(variance_plus / within))
+    rho <- numeric(max(0L, n - 1L))
+    if (length(rho)) {
+      for (lag in seq_along(rho)) {
+        autocovariance <- mean(vapply(seq_len(m), function(chain) {
+          centered <- draws[, chain] - chain_means[[chain]]
+          sum(
+            centered[seq_len(n - lag)] *
+              centered[seq.int(lag + 1L, n)]
+          ) / n
+        }, numeric(1L)))
+        rho[[lag]] <- 1 - (within - autocovariance) / variance_plus
+      }
+    }
+    paired_sum <- numeric()
+    if (length(rho) >= 2L) {
+      for (start in seq.int(1L, length(rho) - 1L, by = 2L)) {
+        pair <- rho[[start]] + rho[[start + 1L]]
+        if (!is.finite(pair) || pair < 0) break
+        paired_sum <- c(paired_sum, pair)
+      }
+    }
+    integrated_time <- max(1, 1 + 2 * sum(paired_sum))
+    mcmc_ess <- min(n * m, max(1, n * m / integrated_time))
+  }
+  structure(list(
+    split_rhat = as.numeric(split_rhat),
+    mcmc_ess = as.numeric(mcmc_ess),
+    relative_mcmc_ess = as.numeric(mcmc_ess / (n * m)),
+    original_chains = length(chains),
+    split_chains = m,
+    draws_per_split = n,
+    chain_mean_range = diff(range(vapply(chains, mean, numeric(1L))))
+  ), class = c("sab_mcmc_scalar_diagnostics", "list"))
+}
+
+#' Form distribution-free patient population log weights
+#'
+#' This is the minimal model-facing numerical interface for a
+#' fixed-shared-parameter raw message.  The caller evaluates the normalized
+#' anchor and candidate
+#' patient population densities on the same stored states.  Those evaluators
+#' may depend on patient covariates and model structure and need not be
+#' Gaussian.  Their normalizing terms must not be omitted.  This numerical
+#' helper validates the supplied values only; absolute continuity and tail
+#' overlap away from the observed bank are obligations of the caller.
+#'
+#' @param log_g_candidate Values of
+#'   `log g_(i,M)(x_s | eta, z_i)` on anchor-bank draws.  Negative infinity is
+#'   allowed where the candidate density is zero.
+#' @param log_g_anchor Values of
+#'   `log g_(i,A)(x_s | eta_A, z_i)` on the same draws and in the same order.
+#'   These must be finite: an anchor-conditional draw cannot lie outside the
+#'   support of its own population density.
+#'
+#' @return The ordered log importance weights for
+#'   [sab_raw_message_diagnostics()].
+#' @export
+sab_population_log_weights <- function(log_g_candidate, log_g_anchor) {
+  log_g_candidate <- .sab_pm_validate_log_vector(
+    log_g_candidate, "log_g_candidate"
+  )
+  log_g_anchor <- .sab_pm_validate_log_vector(
+    log_g_anchor, "log_g_anchor", allow_negative_infinity = FALSE
+  )
+  if (length(log_g_candidate) != length(log_g_anchor)) {
+    stop(
+      "Candidate and anchor log population densities must have equal length.",
+      call. = FALSE
+    )
+  }
+  log_weights <- log_g_candidate - log_g_anchor
+  .sab_pm_validate_log_vector(log_weights, "population log weights")
+}
+
+#' Evaluate a population-message density ratio on stored patient states
+#'
+#' This helper deliberately knows nothing about the population family.  The
+#' supplied callback may implement a correlated, non-Gaussian, mixture, or
+#' covariate-dependent normalized density.  It is called with the same patient
+#' context for the anchor and candidate models, so observed covariates cannot
+#' be silently dropped between the two evaluations.
+#'
+#' @param draws Finite numeric matrix.  Rows are stored patient states and
+#'   columns are the declared local coordinates.
+#' @param anchor_parameter,candidate_parameter Arbitrary objects understood by
+#'   `log_population_density`; these may include model structure as well as
+#'   continuous population parameters.
+#' @param patient_context Fixed patient metadata, including any covariates,
+#'   passed unchanged to both density evaluations.
+#' @param log_population_density Function of `(x, parameter, patient_context)`
+#'   returning one normalized log density with respect to the declared local
+#'   state measure.  Negative infinity is allowed for zero candidate density.
+#'
+#' @return A list containing anchor and candidate log densities and their
+#'   ordered log ratio.
+#' @export
+sab_evaluate_population_message <- function(
+    draws, anchor_parameter, candidate_parameter, patient_context,
+    log_population_density) {
+  if (!is.matrix(draws) || !is.numeric(draws) || nrow(draws) < 1L ||
+      ncol(draws) < 1L || any(!is.finite(draws)) ||
+      is.null(colnames(draws)) || anyNA(colnames(draws)) ||
+      any(!nzchar(colnames(draws))) || anyDuplicated(colnames(draws))) {
+    stop(
+      "`draws` must be a finite numeric matrix with unique coordinate names.",
+      call. = FALSE
+    )
+  }
+  if (!is.function(log_population_density)) {
+    stop("`log_population_density` must be a function.", call. = FALSE)
+  }
+  evaluate <- function(parameter, label) {
+    values <- vapply(seq_len(nrow(draws)), function(index) {
+      value <- log_population_density(
+        draws[index, ], parameter, patient_context
+      )
+      if (!is.numeric(value) || length(value) != 1L || is.na(value) ||
+          is.nan(value) || value == Inf) {
+        stop(
+          "The population-density callback returned an invalid value for ",
+          label, " at draw ", index, ".", call. = FALSE
+        )
+      }
+      as.numeric(value)
+    }, numeric(1L))
+    .sab_pm_validate_log_vector(values, label)
+  }
+
+  log_g_anchor <- evaluate(anchor_parameter, "anchor log population density")
+  log_g_candidate <- evaluate(
+    candidate_parameter, "candidate log population density"
+  )
+  log_weights <- sab_population_log_weights(
+    log_g_candidate = log_g_candidate,
+    log_g_anchor = log_g_anchor
+  )
+  structure(
+    list(
+      log_g_anchor = log_g_anchor,
+      log_g_candidate = log_g_candidate,
+      log_weights = log_weights
+    ),
+    class = c("sab_population_message_evaluation", "list")
+  )
 }
 
 .sab_pm_log_sum_exp <- function(value) {
@@ -227,8 +428,10 @@ sab_split_message_diagnostics <- function(log_weights) {
 
 #' Estimate a raw SAEM-anchored patient message and its reliability
 #'
-#' @param log_weights Log ratios `log q_new(x_s) - log q_anchor(x_s)` for
-#'   ordered draws from the normalized anchor conditional.
+#' @param log_weights Ordered log population-density ratios returned by
+#'   [sab_population_log_weights()], or more general ratios
+#'   `log q_new(x_s) - log q_anchor(x_s)`, on draws from the normalized anchor
+#'   conditional.
 #' @param n_batches Number of contiguous batches used for the batch-means
 #'   log-scale MCSE.  The default uses at most ten batches and leaves at least
 #'   two draws in each batch.
@@ -262,8 +465,9 @@ sab_raw_message_diagnostics <- function(log_weights, n_batches = NULL) {
 #' This function receives evaluations of both densities on independent draws
 #' from `q0 / Z0` and `q1 / Z1`.  It solves the optimal bridge fixed-point
 #' equation for `log(Z1 / Z0)`, using sample-size fractions in the bridge
-#' function.  Density evaluations must be finite, which deliberately fails
-#' closed when the supplied banks have unresolved support mismatch.
+#' function.  Neither density has to be Gaussian.  Density evaluations must be
+#' finite, which deliberately fails closed when the supplied banks have
+#' unresolved support mismatch.
 #'
 #' @param log_q0_on_0,log_q1_on_0 Log densities on draws from `q0 / Z0`.
 #' @param log_q0_on_1,log_q1_on_1 Log densities on draws from `q1 / Z1`.

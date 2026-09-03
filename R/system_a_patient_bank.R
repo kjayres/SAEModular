@@ -1,15 +1,22 @@
-# Exact fixed-anchor patient banks for System A.
+# Exact-target fixed-anchor patient MCMC banks for System A.
 #
 # This file only defines functions.  In particular, sourcing it never loads the
 # System A target and never starts a chain.  The caller must supply a validated
 # adapter, an anchor, and explicit run settings.
 
-#' Draw one exact System A patient-conditional bank at a frozen anchor
+#' Draw one exact-target System A patient-conditional MCMC bank
 #'
-#' The proposal is pCN with respect to the diagonal Gaussian population density
-#' `g_i(x | eta)`.  Consequently `g_i` and the pCN proposal densities cancel
-#' exactly, leaving only the sealed patient-likelihood ratio in the Metropolis
-#' correction.  `beta` is adapted during warm-up blocks and then frozen.
+#' The proposal is pCN with respect to System A's diagonal Gaussian anchor
+#' population density `g_i(x | eta, z_i)`.  Consequently `g_i` and the pCN
+#' proposal densities cancel exactly, leaving only the sealed
+#' patient-likelihood ratio in the Metropolis correction.  `beta` is adapted
+#' during warm-up blocks and then frozen.  This diagonal-Gaussian requirement
+#' belongs only to this System A bank kernel; raw candidate messages can use any
+#' normalized evaluable population density on the same local-state space.
+#' Compatibility between the adapter density and the pCN reference is checked
+#' at every evaluated state; a mismatch is a contract error, not an MH
+#' rejection.  Retained states are finite-chain MCMC output, not iid exact
+#' conditional draws, so convergence must be assessed across chains.
 #'
 #' @param adapter A loaded System A adapter.  Tests may supply an object with the
 #'   same callback contract.
@@ -25,6 +32,13 @@
 #' @param target_acceptance Warm-up adaptation target in `(0, 1)`.
 #' @param adaptation_block Positive warm-up block length.
 #' @param seed Integer random seed.
+#' @param proposal_mode Either `"pcn"` for the System A diagonal-Gaussian
+#'   population law at `eta`, or `"defensive_independence"` for an equal
+#'   mixture of that law and the law at `defensive_eta`.  The latter proposes
+#'   independently from the normalized mixture, so the mixture cancels and the
+#'   exact MH correction is again the sealed likelihood ratio.
+#' @param defensive_eta Canonically named second population parameter vector,
+#'   required only for `"defensive_independence"`.
 #'
 #' @return A `sab_system_a_patient_bank` containing draws, cached likelihoods,
 #'   first- and second-moment ESS diagnostics, tuning history, and an exact-call
@@ -33,12 +47,23 @@
 sab_build_system_a_patient_bank <- function(
     adapter, patient_id, eta, psi, initial_candidates,
     warmup, draws, thin = 1L, initial_beta = 0.2,
-    target_acceptance = 0.3, adaptation_block = 50L, seed) {
+    target_acceptance = 0.3, adaptation_block = 50L, seed,
+    proposal_mode = c("pcn", "defensive_independence"),
+    defensive_eta = NULL) {
   .sab_patient_bank_validate_adapter(adapter)
   local_names <- adapter$coordinate_names$local
   eta <- .sab_patient_bank_named_vector(
     eta, adapter$coordinate_names$population, "eta"
   )
+  proposal_mode <- match.arg(proposal_mode)
+  if (proposal_mode == "defensive_independence") {
+    defensive_eta <- .sab_patient_bank_named_vector(
+      defensive_eta, adapter$coordinate_names$population, "defensive_eta"
+    )
+  } else if (!is.null(defensive_eta)) {
+    stop("defensive_eta is only valid for defensive_independence mode.",
+         call. = FALSE)
+  }
   psi <- .sab_patient_bank_named_vector(
     psi, adapter$coordinate_names$global, "psi"
   )
@@ -48,6 +73,8 @@ sab_build_system_a_patient_bank <- function(
     stop("patient_id is not in the supplied System A adapter.", call. = FALSE)
   }
   if (!isTRUE(adapter$eta_in_domain(eta)) ||
+      (proposal_mode == "defensive_independence" &&
+       !isTRUE(adapter$eta_in_domain(defensive_eta))) ||
       !isTRUE(adapter$psi_in_domain(psi))) {
     stop("The fixed patient-bank anchor is outside the target domain.",
          call. = FALSE)
@@ -98,6 +125,19 @@ sab_build_system_a_patient_bank <- function(
   if (any(!is.finite(population_sd)) || any(population_sd <= 0)) {
     stop("Patient population scales are not representable.", call. = FALSE)
   }
+  defensive_mean <- defensive_sd <- NULL
+  if (proposal_mode == "defensive_independence") {
+    defensive_mean <- .sab_patient_bank_named_vector(
+      adapter$population_mean(patient_id, defensive_eta),
+      local_names, "defensive patient population mean"
+    )
+    defensive_sd <- exp(defensive_eta[log_scale_names])
+    names(defensive_sd) <- local_names
+    if (any(!is.finite(defensive_sd)) || any(defensive_sd <= 0)) {
+      stop("Defensive patient population scales are not representable.",
+           call. = FALSE)
+    }
+  }
 
   phases <- c("initialization", "warmup", "sampling")
   ledger <- matrix(
@@ -119,8 +159,16 @@ sab_build_system_a_patient_bank <- function(
     candidate <- initial_candidates[candidate_index, ]
     names(candidate) <- local_names
     evaluated <- .sab_patient_bank_evaluate(
-      adapter, patient_id, candidate, eta, psi
+      adapter, patient_id, candidate, eta, psi,
+      population_mean, population_sd,
+      reject_zero_population = proposal_mode == "pcn"
     )
+    if (proposal_mode == "defensive_independence") {
+      evaluated <- .sab_patient_bank_add_defensive_reference(
+        evaluated, adapter, patient_id, candidate, defensive_eta,
+        defensive_mean, defensive_sd
+      )
+    }
     ledger["initialization", "prediction_calls"] <-
       ledger["initialization", "prediction_calls"] +
       as.integer(evaluated$prediction_called)
@@ -168,17 +216,64 @@ sab_build_system_a_patient_bank <- function(
   )
   kept_loglik <- numeric(draws)
   kept_index <- 0L
+  proposal_components <- c(saem = 0L, priorcentral = 0L)
+  component_ledger <- expand.grid(
+    phase = c("warmup", "sampling"),
+    component = names(proposal_components),
+    stringsAsFactors = FALSE
+  )
+  component_ledger$proposals <- 0L
+  component_ledger$accepted <- 0L
+  component_ledger$prediction_failures <- 0L
+  component_ledger$nonfinite_loglik <- 0L
 
   for (iteration in seq_len(as.integer(total_iterations))) {
     phase <- if (iteration <= warmup) "warmup" else "sampling"
-    persistence <- sqrt(1 - beta^2)
-    proposed_x <- population_mean +
-      persistence * (x - population_mean) +
-      beta * population_sd * stats::rnorm(length(x))
+    component_name <- NA_character_
+    if (proposal_mode == "pcn") {
+      persistence <- sqrt(1 - beta^2)
+      proposed_x <- population_mean +
+        persistence * (x - population_mean) +
+        beta * population_sd * stats::rnorm(length(x))
+    } else {
+      component <- if (stats::runif(1L) < 0.5) 1L else 2L
+      component_name <- names(proposal_components)[[component]]
+      proposal_components[[component_name]] <-
+        proposal_components[[component_name]] + 1L
+      component_mean <- if (component == 1L) population_mean else defensive_mean
+      component_sd <- if (component == 1L) population_sd else defensive_sd
+      proposed_x <- component_mean + component_sd * stats::rnorm(length(x))
+    }
     names(proposed_x) <- local_names
     proposed <- .sab_patient_bank_evaluate(
-      adapter, patient_id, proposed_x, eta, psi
+      adapter, patient_id, proposed_x, eta, psi,
+      population_mean, population_sd,
+      reject_zero_population = proposal_mode == "pcn"
     )
+    if (proposal_mode == "defensive_independence") {
+      proposed <- .sab_patient_bank_add_defensive_reference(
+        proposed, adapter, patient_id, proposed_x, defensive_eta,
+        defensive_mean, defensive_sd
+      )
+    }
+    component_row <- if (proposal_mode == "defensive_independence") {
+      which(
+        component_ledger$phase == phase &
+          component_ledger$component == component_name
+      )
+    } else {
+      integer()
+    }
+    if (length(component_row)) {
+      component_ledger$proposals[[component_row]] <-
+        component_ledger$proposals[[component_row]] + 1L
+      component_ledger$prediction_failures[[component_row]] <-
+        component_ledger$prediction_failures[[component_row]] +
+        as.integer(proposed$prediction_failure)
+      component_ledger$nonfinite_loglik[[component_row]] <-
+        component_ledger$nonfinite_loglik[[component_row]] +
+        as.integer(!is.finite(proposed$loglik))
+    }
     ledger[phase, "prediction_calls"] <-
       ledger[phase, "prediction_calls"] +
       as.integer(proposed$prediction_called)
@@ -205,29 +300,35 @@ sab_build_system_a_patient_bank <- function(
       current <- proposed
       ledger[phase, "mh_accepted"] <-
         ledger[phase, "mh_accepted"] + 1L
+      if (length(component_row)) {
+        component_ledger$accepted[[component_row]] <-
+          component_ledger$accepted[[component_row]] + 1L
+      }
     }
 
     if (phase == "warmup") {
-      block_accepted <- block_accepted + as.integer(accepted)
-      block_proposals <- block_proposals + 1L
-      if (iteration %% adaptation_block == 0L || iteration == warmup) {
-        adaptation_index <- adaptation_index + 1L
-        observed <- block_accepted / block_proposals
-        gain <- 0.8 / sqrt(adaptation_index)
-        beta_logit <- beta_logit + gain *
-          (observed - target_acceptance)
-        beta <- min(0.95, max(0.005, stats::plogis(beta_logit)))
-        beta_logit <- stats::qlogis(beta)
-        adaptation <- rbind(
-          adaptation,
-          data.frame(
-            iteration = iteration,
-            block_acceptance = observed,
-            beta = beta
+      if (proposal_mode == "pcn") {
+        block_accepted <- block_accepted + as.integer(accepted)
+        block_proposals <- block_proposals + 1L
+        if (iteration %% adaptation_block == 0L || iteration == warmup) {
+          adaptation_index <- adaptation_index + 1L
+          observed <- block_accepted / block_proposals
+          gain <- 0.8 / sqrt(adaptation_index)
+          beta_logit <- beta_logit + gain *
+            (observed - target_acceptance)
+          beta <- min(0.95, max(0.005, stats::plogis(beta_logit)))
+          beta_logit <- stats::qlogis(beta)
+          adaptation <- rbind(
+            adaptation,
+            data.frame(
+              iteration = iteration,
+              block_acceptance = observed,
+              beta = beta
+            )
           )
-        )
-        block_accepted <- 0L
-        block_proposals <- 0L
+          block_accepted <- 0L
+          block_proposals <- 0L
+        }
       }
     } else if ((iteration - warmup) %% thin == 0L) {
       kept_index <- kept_index + 1L
@@ -275,7 +376,22 @@ sab_build_system_a_patient_bank <- function(
       anchor = list(
         eta = eta, psi = psi,
         population_mean = population_mean,
-        population_sd = population_sd
+        population_sd = population_sd,
+        population_reference = proposal_mode,
+        pcn_reference = if (proposal_mode == "pcn") {
+          "diagonal_gaussian"
+        } else {
+          NA_character_
+        },
+        pcn_reference_checked = proposal_mode == "pcn",
+        defensive_eta = defensive_eta,
+        defensive_population_mean = defensive_mean,
+        defensive_population_sd = defensive_sd,
+        defensive_mixture_weights = if (
+          proposal_mode == "defensive_independence"
+        ) c(saem = 0.5, priorcentral = 0.5) else NULL,
+        defensive_reference_checked =
+          proposal_mode == "defensive_independence"
       ),
       draws = kept,
       loglik = kept_loglik,
@@ -284,7 +400,10 @@ sab_build_system_a_patient_bank <- function(
       final_loglik = current$loglik,
       initial_candidate_index = initial_candidate_index,
       beta = list(
-        initial = as.numeric(initial_beta), final = beta,
+        initial = if (proposal_mode == "pcn") {
+          as.numeric(initial_beta)
+        } else NA_real_,
+        final = if (proposal_mode == "pcn") beta else NA_real_,
         target_acceptance = as.numeric(target_acceptance),
         adaptation_block = adaptation_block,
         history = adaptation
@@ -303,6 +422,15 @@ sab_build_system_a_patient_bank <- function(
       exact_ode_integrations =
         ledger$ode_integrations[ledger$phase == "total"],
       rejection_reasons = failure_reasons,
+      proposal = list(
+        mode = proposal_mode,
+        component_counts = if (
+          proposal_mode == "defensive_independence"
+        ) proposal_components else NULL,
+        component_ledger = if (
+          proposal_mode == "defensive_independence"
+        ) component_ledger else NULL
+      ),
       run = list(
         warmup = warmup, draws = draws, thin = thin, seed = seed,
         rng_kind = RNGkind(), r_version = R.version.string
@@ -380,7 +508,9 @@ sab_build_system_a_patient_bank <- function(
   value
 }
 
-.sab_patient_bank_evaluate <- function(adapter, patient_id, x, eta, psi) {
+.sab_patient_bank_evaluate <- function(adapter, patient_id, x, eta, psi,
+                                       population_mean, population_sd,
+                                       reject_zero_population = TRUE) {
   population_log_density <- adapter$log_population_density(
     patient_id, x, eta
   )
@@ -391,7 +521,26 @@ sab_build_system_a_patient_bank <- function(
     stop("The patient population density returned an invalid value.",
          call. = FALSE)
   }
-  if (population_log_density == -Inf) {
+  expected_log_density <- sum(stats::dnorm(
+    x, mean = population_mean, sd = population_sd, log = TRUE
+  ))
+  both_negative_infinity <-
+    population_log_density == -Inf && expected_log_density == -Inf
+  comparison_scale <- max(
+    1, abs(population_log_density), abs(expected_log_density)
+  )
+  reference_matches <- both_negative_infinity || (
+    is.finite(population_log_density) && is.finite(expected_log_density) &&
+      abs(population_log_density - expected_log_density) <=
+        4096 * .Machine$double.eps * comparison_scale
+  )
+  if (!isTRUE(reference_matches)) {
+    stop(
+      "The adapter population density is incompatible with the diagonal-",
+      "Gaussian pCN reference.", call. = FALSE
+    )
+  }
+  if (population_log_density == -Inf && isTRUE(reject_zero_population)) {
     return(list(
       loglik = -Inf,
       population_log_density = -Inf,
@@ -440,6 +589,51 @@ sab_build_system_a_patient_bank <- function(
     ode_integrations = .sab_patient_bank_ode_integrations(prediction),
     reason = reason
   )
+}
+
+.sab_patient_bank_add_defensive_reference <- function(
+    evaluated, adapter, patient_id, x, defensive_eta,
+    defensive_mean, defensive_sd) {
+  defensive_log_density <- adapter$log_population_density(
+    patient_id, x, defensive_eta
+  )
+  if (!is.numeric(defensive_log_density) ||
+      length(defensive_log_density) != 1L ||
+      is.na(defensive_log_density) || is.nan(defensive_log_density) ||
+      defensive_log_density == Inf) {
+    stop("The defensive population density returned an invalid value.",
+         call. = FALSE)
+  }
+  expected <- sum(stats::dnorm(
+    x, mean = defensive_mean, sd = defensive_sd, log = TRUE
+  ))
+  both_negative_infinity <-
+    defensive_log_density == -Inf && expected == -Inf
+  comparison_scale <- max(1, abs(defensive_log_density), abs(expected))
+  matches <- both_negative_infinity || (
+    is.finite(defensive_log_density) && is.finite(expected) &&
+      abs(defensive_log_density - expected) <=
+        4096 * .Machine$double.eps * comparison_scale
+  )
+  if (!isTRUE(matches)) {
+    stop(
+      "The defensive adapter density is incompatible with its diagonal-",
+      "Gaussian independence component.", call. = FALSE
+    )
+  }
+  first <- evaluated$population_log_density + log(0.5)
+  second <- defensive_log_density + log(0.5)
+  largest <- max(first, second)
+  mixture <- if (largest == -Inf) {
+    -Inf
+  } else {
+    largest + log(exp(first - largest) + exp(second - largest))
+  }
+  if (!is.finite(mixture)) {
+    stop("The defensive reference mixture is non-finite.", call. = FALSE)
+  }
+  evaluated$population_log_density <- mixture
+  evaluated
 }
 
 .sab_patient_bank_ode_integrations <- function(prediction) {

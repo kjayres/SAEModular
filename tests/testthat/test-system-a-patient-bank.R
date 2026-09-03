@@ -126,6 +126,78 @@ testthat::test_that("constant likelihood exposes the exact prior-reversible pCN 
   )
 })
 
+testthat::test_that("defensive independence proposals cancel the mixture exactly", {
+  mock <- .sab_make_patient_bank_mock()
+  anchor <- .sab_patient_bank_anchor()
+  defensive_eta <- anchor$eta
+  defensive_eta[c("mu_a", "mu_b")] <- c(-3, 4)
+  defensive_eta[c("log_omega_a", "log_omega_b")] <- log(c(0.7, 1.5))
+  warmup <- 2L
+  n_draws <- 5L
+  seed <- 310L
+  bank <- sab_build_system_a_patient_bank(
+    adapter = mock$adapter,
+    patient_id = "patient_1",
+    eta = anchor$eta,
+    psi = anchor$psi,
+    initial_candidates = c(u_a = 0, u_b = 0),
+    warmup = warmup,
+    draws = n_draws,
+    thin = 1L,
+    initial_beta = 0.2,
+    target_acceptance = 0.3,
+    adaptation_block = 2L,
+    seed = seed,
+    proposal_mode = "defensive_independence",
+    defensive_eta = defensive_eta
+  )
+
+  expected <- matrix(
+    NA_real_, nrow = n_draws, ncol = 2L,
+    dimnames = list(NULL, c("u_a", "u_b"))
+  )
+  expected_components <- c(saem = 0L, priorcentral = 0L)
+  set.seed(seed)
+  kept <- 0L
+  for (iteration in seq_len(warmup + n_draws)) {
+    component <- if (stats::runif(1L) < 0.5) 1L else 2L
+    component_name <- names(expected_components)[[component]]
+    expected_components[[component_name]] <-
+      expected_components[[component_name]] + 1L
+    means <- if (component == 1L) c(1, -2) else c(-3, 4)
+    sds <- if (component == 1L) c(2, 0.5) else c(0.7, 1.5)
+    proposed <- means + sds * stats::rnorm(2L)
+    stats::runif(1L)
+    if (iteration > warmup) {
+      kept <- kept + 1L
+      expected[kept, ] <- proposed
+    }
+  }
+
+  testthat::expect_equal(bank$draws, expected, tolerance = 1e-14)
+  testthat::expect_equal(unname(bank$acceptance[["sampling"]]), 1)
+  testthat::expect_identical(
+    bank$proposal$mode, "defensive_independence"
+  )
+  testthat::expect_identical(
+    bank$proposal$component_counts, expected_components
+  )
+  testthat::expect_equal(
+    sum(bank$proposal$component_ledger$proposals), warmup + n_draws
+  )
+  testthat::expect_equal(
+    bank$proposal$component_ledger$accepted,
+    bank$proposal$component_ledger$proposals
+  )
+  testthat::expect_identical(
+    bank$anchor$defensive_mixture_weights,
+    c(saem = 0.5, priorcentral = 0.5)
+  )
+  testthat::expect_true(bank$anchor$defensive_reference_checked)
+  testthat::expect_true(is.na(bank$beta$final))
+  testthat::expect_equal(nrow(bank$beta$history), 0L)
+})
+
 testthat::test_that("adaptation is warmup-only and current likelihood is cached", {
   likelihood <- function(x, psi) -0.5 * (x[[1L]]^2 + 2 * x[[2L]]^2)
   anchor <- .sab_patient_bank_anchor()
@@ -179,6 +251,41 @@ testthat::test_that("adaptation is warmup-only and current likelihood is cached"
   )
 })
 
+testthat::test_that("the final partial warmup block is adapted then frozen", {
+  mock <- .sab_make_patient_bank_mock()
+  anchor <- .sab_patient_bank_anchor()
+  bank <- sab_build_system_a_patient_bank(
+    mock$adapter, "patient_1", anchor$eta, anchor$psi,
+    c(u_a = 0, u_b = 0), warmup = 5L, draws = 3L,
+    initial_beta = 0.2, target_acceptance = 0.3,
+    adaptation_block = 2L, seed = 11L
+  )
+
+  testthat::expect_equal(bank$beta$history$iteration, c(2L, 4L, 5L))
+  testthat::expect_equal(nrow(bank$beta$history), 3L)
+})
+
+testthat::test_that("production-shaped predictions count actual integrations", {
+  solver <- function(x, psi) {
+    list(
+      ok = TRUE,
+      x = x,
+      adjusted_positive_times = c(0.25, 1)
+    )
+  }
+  mock <- .sab_make_patient_bank_mock(solver = solver)
+  anchor <- .sab_patient_bank_anchor()
+  bank <- sab_build_system_a_patient_bank(
+    mock$adapter, "patient_1", anchor$eta, anchor$psi,
+    c(u_a = 0, u_b = 0), warmup = 0L, draws = 3L,
+    initial_beta = 0.2, target_acceptance = 0.3,
+    adaptation_block = 2L, seed = 12L
+  )
+
+  testthat::expect_equal(bank$exact_prediction_calls, 4)
+  testthat::expect_equal(bank$exact_ode_integrations, 4)
+})
+
 testthat::test_that("dispersed candidates fail over with an auditable ledger", {
   solver <- function(x, psi) {
     if (x[[1L]] == 99) {
@@ -229,7 +336,7 @@ testthat::test_that("dispersed candidates fail over with an auditable ledger", {
   )
 })
 
-testthat::test_that("population-zero states are rejected before prediction", {
+testthat::test_that("pCN fails closed for an incompatible adapter density", {
   population_log_density <- function(x, eta) {
     if (x[[1L]] == 10) -Inf else 0
   }
@@ -241,27 +348,25 @@ testthat::test_that("population-zero states are rejected before prediction", {
     c(u_a = 10, u_b = 0),
     c(u_a = 0, u_b = 0)
   )
-  bank <- sab_build_system_a_patient_bank(
-    adapter = mock$adapter,
-    patient_id = "patient_1",
-    eta = anchor$eta,
-    psi = anchor$psi,
-    initial_candidates = candidates,
-    warmup = 0L,
-    draws = 4L,
-    thin = 1L,
-    initial_beta = 0.1,
-    target_acceptance = 0.3,
-    adaptation_block = 2L,
-    seed = 7L
+  testthat::expect_error(
+    sab_build_system_a_patient_bank(
+      adapter = mock$adapter,
+      patient_id = "patient_1",
+      eta = anchor$eta,
+      psi = anchor$psi,
+      initial_candidates = candidates,
+      warmup = 0L,
+      draws = 4L,
+      thin = 1L,
+      initial_beta = 0.1,
+      target_acceptance = 0.3,
+      adaptation_block = 2L,
+      seed = 7L
+    ),
+    "incompatible with the diagonal-Gaussian pCN reference",
+    fixed = TRUE
   )
-
-  initialization <- bank$ledger[bank$ledger$phase == "initialization", ]
-  testthat::expect_equal(bank$initial_candidate_index, 2L)
-  testthat::expect_equal(initialization$prediction_calls, 1)
-  testthat::expect_equal(initialization$ode_integrations, 1)
-  testthat::expect_equal(initialization$population_density_rejections, 1)
-  testthat::expect_equal(mock$counts$solve, 1L + 4L)
+  testthat::expect_equal(mock$counts$solve, 0L)
 })
 
 testthat::test_that("sealed failure validation cannot be bypassed", {

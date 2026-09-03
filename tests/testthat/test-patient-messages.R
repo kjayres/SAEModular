@@ -62,6 +62,147 @@ testthat::test_that("raw anchor weights recover an analytic Gaussian message", {
   testthat::expect_lt(estimate$split$absolute_log_ratio_difference, 0.03)
 })
 
+testthat::test_that("population messages accept non-Gaussian covariate models", {
+  # Four deterministic states have exactly the anchor Bernoulli frequencies.
+  # The candidate probability is a covariate-dependent alternative model.
+  states <- c(0L, 1L, 1L, 1L)
+  anchor_probability <- 0.75
+  patient_covariate <- 2
+  candidate_coefficient <- 0.2
+  candidate_probability <- stats::plogis(
+    candidate_coefficient * patient_covariate
+  )
+  log_probability <- function(state, probability) {
+    ifelse(state == 1L, log(probability), log1p(-probability))
+  }
+
+  log_weights <- sab_population_log_weights(
+    log_g_candidate = log_probability(states, candidate_probability),
+    log_g_anchor = log_probability(states, anchor_probability)
+  )
+  estimate <- sab_raw_message_diagnostics(log_weights, n_batches = 2L)
+
+  testthat::expect_equal(estimate$log_ratio, 0, tolerance = 1e-14)
+  testthat::expect_length(log_weights, length(states))
+})
+
+testthat::test_that("density callbacks retain covariates without family assumptions", {
+  draws <- matrix(
+    c(-1.5, -0.25, 0.5, 2), ncol = 1L,
+    dimnames = list(NULL, "x")
+  )
+  context <- list(treatment = 1, dose = 2.5)
+  anchor <- list(intercept = -0.2, treatment = 0.4, scale = 1.1, df = 5)
+  candidate <- list(intercept = 0.1, treatment = -0.15, scale = 1.4, df = 3)
+  log_student_population <- function(x, parameter, patient_context) {
+    location <- parameter$intercept +
+      parameter$treatment * patient_context$treatment +
+      0.05 * patient_context$dose
+    stats::dt(
+      (x[["x"]] - location) / parameter$scale,
+      df = parameter$df, log = TRUE
+    ) - log(parameter$scale)
+  }
+
+  evaluated <- sab_evaluate_population_message(
+    draws, anchor, candidate, context, log_student_population
+  )
+  expected_anchor <- apply(
+    draws, 1L, log_student_population,
+    parameter = anchor, patient_context = context
+  )
+  expected_candidate <- apply(
+    draws, 1L, log_student_population,
+    parameter = candidate, patient_context = context
+  )
+
+  testthat::expect_s3_class(
+    evaluated, "sab_population_message_evaluation"
+  )
+  testthat::expect_equal(evaluated$log_g_anchor, expected_anchor)
+  testthat::expect_equal(evaluated$log_g_candidate, expected_candidate)
+  testthat::expect_equal(
+    evaluated$log_weights, expected_candidate - expected_anchor
+  )
+})
+
+testthat::test_that("density callback evaluation fails closed", {
+  draws <- matrix(0, nrow = 2L, ncol = 1L,
+                  dimnames = list(NULL, "x"))
+  invalid <- function(x, parameter, patient_context) {
+    if (identical(parameter, "candidate")) NaN else 0
+  }
+  testthat::expect_error(
+    sab_evaluate_population_message(
+      draws, "anchor", "candidate", list(), invalid
+    ),
+    "candidate log population density at draw 1",
+    fixed = TRUE
+  )
+  testthat::expect_error(
+    sab_evaluate_population_message(
+      unname(draws), "anchor", "candidate", list(), invalid
+    ),
+    "unique coordinate names",
+    fixed = TRUE
+  )
+})
+
+testthat::test_that("equal defensive-component messages obey their identity", {
+  states <- matrix(
+    c(-8, -1, 0, 1, 9), ncol = 1L,
+    dimnames = list(NULL, "x")
+  )
+  log_g_saem <- stats::dnorm(states[, 1L], -3, 0.8, log = TRUE)
+  log_g_prior <- stats::dt(states[, 1L] / 2, df = 4, log = TRUE) - log(2)
+  largest <- pmax(log_g_saem, log_g_prior)
+  log_h <- log(0.5) + largest +
+    log(exp(log_g_saem - largest) + exp(log_g_prior - largest))
+  weight_saem <- exp(log_g_saem - log_h)
+  weight_prior <- exp(log_g_prior - log_h)
+
+  testthat::expect_equal(
+    0.5 * weight_saem + 0.5 * weight_prior,
+    rep(1, nrow(states)), tolerance = 2e-15
+  )
+  testthat::expect_lte(max(weight_saem), 2)
+  testthat::expect_lte(max(weight_prior), 2)
+})
+
+testthat::test_that("MCMC diagnostics are distinct from weight concentration", {
+  constant <- sab_mcmc_scalar_diagnostics(list(rep(2, 20), rep(2, 20)))
+  testthat::expect_equal(constant$split_rhat, 1)
+  testthat::expect_equal(constant$mcmc_ess, 40)
+
+  separated <- sab_mcmc_scalar_diagnostics(list(rep(-1, 20), rep(1, 20)))
+  testthat::expect_true(is.infinite(separated$split_rhat))
+  testthat::expect_equal(separated$mcmc_ess, 1)
+
+  persistent <- list(cumsum(rep(c(1, -0.9), 20)),
+                     cumsum(rep(c(0.9, -1), 20)))
+  diagnostic <- sab_mcmc_scalar_diagnostics(persistent)
+  testthat::expect_true(is.finite(diagnostic$split_rhat))
+  testthat::expect_gte(diagnostic$mcmc_ess, 1)
+  testthat::expect_lte(diagnostic$mcmc_ess, 80)
+})
+
+testthat::test_that("population log weights validate observed density arrays", {
+  testthat::expect_equal(
+    sab_population_log_weights(c(0, -Inf), c(0, 0)),
+    c(0, -Inf)
+  )
+  testthat::expect_error(
+    sab_population_log_weights(c(0, 0), c(0, -Inf)),
+    "finite values",
+    fixed = TRUE
+  )
+  testthat::expect_error(
+    sab_population_log_weights(c(0, 0), 0),
+    "equal length",
+    fixed = TRUE
+  )
+})
+
 testthat::test_that("batch log MCSE matches a hand calculation", {
   raw_weights <- c(1, 3, 2, 4, 5, 7)
   estimate <- sab_batch_log_mcse(log(raw_weights), n_batches = 2)
