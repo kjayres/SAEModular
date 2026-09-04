@@ -1,0 +1,3 @@
+"endpoint_id","minimum_relative_weight_ess","maximum_normalized_weight","maximum_split_log_ratio_difference","cohort_chain_range","maximum_component_probability_chain_range","maximum_mixture_identity_error","maximum_responsibility_split_rhat","minimum_responsibility_mcmc_ess","maximum_component_weight_split_rhat","minimum_component_weight_mcmc_ess","passed"
+"saem_component",0.223,0.00448430493273543,3.5881378843124,0.628312933572823,0.144,1.66533453693773e-15,1.26522468636356,5.26929450308438,1.48832555781312,3.65689013948028,FALSE
+"priorcentral_component",0.00199999999999978,0.500000000000028,882.845608743894,379.686420229616,0.144,1.66533453693773e-15,1.26522468636356,5.26929450308438,1.48832555781312,3.65689013948028,FALSE

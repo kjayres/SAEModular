@@ -1,0 +1,43 @@
+System A 12-patient fixed-psi raw-message validation
+
+Forward raw importance uses only held-out anchor chains 03-04.
+Reverse importance uses separately simulated candidate-target banks.
+The candidate-augmented bridge estimates reuse the held-out h chains,
+so raw-versus-bridge agreement is a diagnostic, not an independent
+replicate comparison. All population densities are normalized callback
+evaluations with the observed treatment covariate retained.
+This panel validates only the selected fixed-psi endpoints, not the full
+115-patient posterior or uncertainty in shared dynamic parameters.
+
+Status: inconclusive_calibration_or_mixing_failure
+
+            endpoint_id                axis sign step pilot_gate_passed
+         saem_component reference_component    0    0             FALSE
+ priorcentral_component reference_component    0    0             FALSE
+ diagnostic_fallback forward_log_ratio reverse_log_ratio bridge_log_ratio
+                TRUE           1.75675          8.317766          1.75675
+                TRUE       -3664.76567          8.317766               NA
+ forward_bridge_difference reverse_bridge_difference
+              1.776357e-15                  6.561016
+                        NA                        NA
+ forward_agreement_tolerance reverse_agreement_tolerance pooled_bridge_failures
+                    1.903218                    1.328663                      0
+                          NA                          NA                      4
+ chain_pair_bridge_failures bridge_convergence_passed
+                          0                      TRUE
+                         32                     FALSE
+ minimum_relative_weight_ess maximum_normalized_weight forward_chain_range
+                       0.017                0.05882353             1.24285
+                       0.001                1.00000000          1774.46884
+ reverse_chain_range bridge_pair_range overlap_passed replication_passed
+        0.000000e+00           1.24285          FALSE              FALSE
+        4.275869e-11                NA          FALSE              FALSE
+ agreement_passed maximum_component_probability_chain_range
+            FALSE                                     0.177
+            FALSE                                     0.177
+ maximum_mixture_identity_error reference_mixing_passed mcmc_diagnostics_passed
+                   1.665335e-15                   FALSE                   FALSE
+                   1.665335e-15                   FALSE                   FALSE
+ candidate_augmented_bridge_identity_passed validated
+                                      FALSE     FALSE
+                                      FALSE     FALSE

@@ -1,0 +1,43 @@
+{
+  "status": "completed",
+  "started_at": "2026-09-03T21:22:32+0100",
+  "events": [
+    {
+      "ts": "2026-09-03T21:22:42+0100",
+      "event": "loading_hiv_benchmark",
+      "phase": "io"
+    },
+    {
+      "ts": "2026-09-03T21:22:50+0100",
+      "event": "hiv_benchmark_loaded",
+      "phase": "io",
+      "n_rows": 1260,
+      "n_patients": 115
+    },
+    {
+      "ts": "2026-09-03T21:22:58+0100",
+      "event": "building_saemix_objects",
+      "phase": "model"
+    },
+    {
+      "ts": "2026-09-03T21:23:05+0100",
+      "event": "starting_saem_fit",
+      "phase": "fit"
+    },
+    {
+      "ts": "2026-09-04T09:22:12+0100",
+      "event": "saem_fit_completed",
+      "phase": "fit",
+      "ode_failure_count": 20061
+    },
+    {
+      "ts": "2026-09-04T09:22:55+0100",
+      "event": "warnings_captured",
+      "phase": "fit",
+      "warning_count": 0,
+      "warnings_txt": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/saem_anchored_bayes/outputs/system_a_corrected_full_seed29_20260903a/warnings.txt",
+      "warnings_json": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/saem_anchored_bayes/outputs/system_a_corrected_full_seed29_20260903a/warnings.json"
+    }
+  ],
+  "updated_at": "2026-09-04T09:23:03+0100"
+}

@@ -1,0 +1,29 @@
+{
+  "n_subjects": 115,
+  "n_rows": 1260,
+  "n_viral_rows": 632,
+  "n_cd4_rows": 628,
+  "n_censored_viral_rows": 155,
+  "treatment_counts": {
+    "A": 42,
+    "B": 38,
+    "C": 35
+  },
+  "overall_time_min": -8.29,
+  "overall_time_max": 59.57,
+  "viral_time_min": -8.29,
+  "viral_time_max": 53,
+  "cd4_time_min": -8.29,
+  "cd4_time_max": 59.57,
+  "per_subject": {
+    "min_total": 2,
+    "median_total": 12,
+    "max_total": 17,
+    "min_viral": 1,
+    "median_viral": 6,
+    "max_viral": 9,
+    "min_cd4": 0,
+    "median_cd4": 6,
+    "max_cd4": 9
+  }
+}

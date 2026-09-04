@@ -1,0 +1,106 @@
+# System A SAEM-message review packet
+
+Date: 2026-09-04
+
+This packet is intended for an independent review of one decision:
+
+> Is it scientifically worthwhile to run one final bounded 12-patient test of
+> the claim that a SAEM fit can supply sufficiently good patient anchors that
+> only a short post-SAEM MCMC refresh is needed for useful fixed-psi Bayesian
+> population uncertainty?
+
+It is **not** evidence that the proposed method already works.
+
+## Current verdict
+
+Do not scale to a 115-patient modular posterior. The status is amber for one
+last bounded pilot and no-go for the defensive-mixture implementation.
+
+The raw identity
+
+```text
+E_{X ~ L_i rho_i / Z_i}[g_i(X | eta, z_i) / rho_i(X)]
+  = m_i(eta) / Z_i
+```
+
+is the existing Stage-1/Stage-2 message identity. The only potentially new
+claim is operational: using SAEM for `rho_i`, starts, or branch anchors might
+make patient-bank construction cheap enough to approach SAEM cost. That claim
+has not yet been tested under a strict short-refresh budget.
+
+## Corrected SAEM jobs
+
+| Job | Seed | State | Elapsed |
+|---|---:|---|---:|
+| `122128` | 8 | completed, exit 0 | 12:11:34 |
+| `122129` | 29 | completed, exit 0 | 12:01:03 |
+
+The omega-initialization correction worked exactly in both jobs, but the final
+fits are incompatible. In particular, implied untreated/treated PI efficacy
+is approximately `0.99944 / 0.01919` for seed 8 and `1 / 0.999992` for seed
+29. Neither fit is a defensible sole anchor, and no marginal likelihood was
+computed to rank the modes. Do not select or average them after inspection.
+
+The reviewable aggregate artifacts are under:
+
+- `outputs/system_a_corrected_full_seed8_20260903a/`
+- `outputs/system_a_corrected_full_seed29_20260903a/`
+
+Raw fit RDS files, patient-level estimates, input observations, and the very
+large repeated ODE-failure ledgers are intentionally not published.
+
+## Defensive-reference calibration
+
+| Job | Role | State |
+|---|---|---|
+| `122130` | 12 defensive-reference patient banks | all 12 completed, exit 0 |
+| `122142` | ODE-free pilot/plan | completed, exit 0 |
+| `122144` | 24 component-target banks | all 24 completed, exit 0 |
+| `122168` | initial bridge assessment | failed closed on nonconvergence |
+| `122169` | structured-failure test suite | completed, exit 0 |
+| `122170` | recorded bridge assessment | completed, exit 0 |
+
+The tested reference was
+
+```text
+h_i = 0.5 g_SAEM,i + 0.5 g_priorcentral,i.
+```
+
+It is unusable as one patient MCMC bank for these data. Important diagnostics:
+
+- mean sampling acceptance 9.39%, with 24/48 chains below 2%;
+- minimum coordinate ESS 2.80;
+- prior-component minimum relative weight ESS 0.001;
+- prior-component pooled bridge nonconvergence for patients 3, 6, 55, and 74;
+- prior-component cohort forward-chain range 1774.47;
+- SAEM-component cohort forward/reverse log ratios 1.757 and 8.318.
+
+This is a no-go for the defensive mixture, not a test of nearby population
+changes from a pure SAEM-conditioned bank. The exact CSV evidence is under:
+
+- `outputs/system_a_message_plan_20260903a/`
+- `outputs/system_a_message_assess_components_20260903a/`
+- the `summary.csv` and `manifest.csv` files in the two bank directories.
+
+## Proposed final fork
+
+If work continues, the next experiment should be the last single-anchor gate:
+
+1. Treat both corrected SAEM endpoints as predeclared stress branches; do not
+   choose the more convenient one.
+2. Validate both against the sealed VODE-BDF target.
+3. On the same 12 patients, target `L_i * g_SAEM,i` directly, without the
+   defensive mixture.
+4. Impose a short post-SAEM ODE budget in advance.
+5. Reweight to genuinely nearby fixed-psi treatment-effect and population-scale
+   endpoints.
+6. Require patientwise MCMC diagnostics, importance-weight ESS/D2, independent
+   candidate-bank/bridge agreement, and total cost accounting.
+
+Passing at both branches would justify a 115-patient test of the operational
+SAEM-cost claim. Failure with adequate chains should stop the single-SAEM-anchor
+proposal. If the aim is a new message identity rather than a faster anchoring
+schedule, this project should stop now because that identity is not new.
+
+See `RESULTS.md` for the complete chronological interpretation and the source
+files/tests for the exact estimators and failure semantics.

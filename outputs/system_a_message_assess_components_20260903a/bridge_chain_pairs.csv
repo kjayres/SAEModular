@@ -1,0 +1,193 @@
+"endpoint_id","patient_id","anchor_chain","candidate_chain","log_ratio","iterations","converged","final_increment","last_log_ratio","failure_code","failure_message"
+"saem_component","3","chain_03","chain_01",0.693147180559945,1,TRUE,4.44089209850063e-16,0.693147180559945,NA,NA
+"saem_component","3","chain_03","chain_02",0.693147180559945,1,TRUE,0,0.693147180559945,NA,NA
+"saem_component","3","chain_03","chain_03",0.693147180559945,1,TRUE,4.44089209850063e-16,0.693147180559945,NA,NA
+"saem_component","3","chain_03","chain_04",0.693147180559945,1,TRUE,0,0.693147180559945,NA,NA
+"saem_component","3","chain_04","chain_01",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","3","chain_04","chain_02",0.693147180559946,1,TRUE,0,0.693147180559946,NA,NA
+"saem_component","3","chain_04","chain_03",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","3","chain_04","chain_04",0.693147180559946,1,TRUE,0,0.693147180559946,NA,NA
+"saem_component","6","chain_03","chain_01",0.693147180559945,1,TRUE,0,0.693147180559945,NA,NA
+"saem_component","6","chain_03","chain_02",0.693147180559945,1,TRUE,0,0.693147180559945,NA,NA
+"saem_component","6","chain_03","chain_03",0.693147180559945,1,TRUE,4.44089209850063e-16,0.693147180559945,NA,NA
+"saem_component","6","chain_03","chain_04",0.693147180559945,1,TRUE,4.44089209850063e-16,0.693147180559945,NA,NA
+"saem_component","6","chain_04","chain_01",0.693147180559945,1,TRUE,4.44089209850063e-16,0.693147180559945,NA,NA
+"saem_component","6","chain_04","chain_02",0.693147180559945,1,TRUE,4.44089209850063e-16,0.693147180559945,NA,NA
+"saem_component","6","chain_04","chain_03",0.693147180559945,1,TRUE,8.88178419700125e-16,0.693147180559945,NA,NA
+"saem_component","6","chain_04","chain_04",0.693147180559945,1,TRUE,8.88178419700125e-16,0.693147180559945,NA,NA
+"saem_component","16","chain_03","chain_01",0.581097676751323,2,TRUE,0,0.581097676751323,NA,NA
+"saem_component","16","chain_03","chain_02",0.581097676751323,2,TRUE,0,0.581097676751323,NA,NA
+"saem_component","16","chain_03","chain_03",0.581097676751322,2,TRUE,0,0.581097676751322,NA,NA
+"saem_component","16","chain_03","chain_04",0.581097676751323,2,TRUE,0,0.581097676751323,NA,NA
+"saem_component","16","chain_04","chain_01",0.585561969880008,2,TRUE,0,0.585561969880008,NA,NA
+"saem_component","16","chain_04","chain_02",0.585561969880008,2,TRUE,0,0.585561969880008,NA,NA
+"saem_component","16","chain_04","chain_03",0.585561969880008,2,TRUE,0,0.585561969880008,NA,NA
+"saem_component","16","chain_04","chain_04",0.585561969880008,2,TRUE,0,0.585561969880008,NA,NA
+"saem_component","20","chain_03","chain_01",0.671923544108319,2,TRUE,0,0.671923544108319,NA,NA
+"saem_component","20","chain_03","chain_02",0.671923544108319,2,TRUE,0,0.671923544108319,NA,NA
+"saem_component","20","chain_03","chain_03",0.671923544108319,2,TRUE,0,0.671923544108319,NA,NA
+"saem_component","20","chain_03","chain_04",0.671923544108319,2,TRUE,0,0.671923544108319,NA,NA
+"saem_component","20","chain_04","chain_01",0.669878553620592,2,TRUE,0,0.669878553620592,NA,NA
+"saem_component","20","chain_04","chain_02",0.669878553620592,2,TRUE,0,0.669878553620592,NA,NA
+"saem_component","20","chain_04","chain_03",0.669878553620592,2,TRUE,0,0.669878553620592,NA,NA
+"saem_component","20","chain_04","chain_04",0.669878553620592,2,TRUE,0,0.669878553620592,NA,NA
+"saem_component","55","chain_03","chain_01",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","55","chain_03","chain_02",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","55","chain_03","chain_03",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","55","chain_03","chain_04",0.693147180559945,1,TRUE,0,0.693147180559945,NA,NA
+"saem_component","55","chain_04","chain_01",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","55","chain_04","chain_02",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","55","chain_04","chain_03",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","55","chain_04","chain_04",0.693147180559945,1,TRUE,0,0.693147180559945,NA,NA
+"saem_component","71","chain_03","chain_01",0.561898893949992,2,TRUE,0,0.561898893949992,NA,NA
+"saem_component","71","chain_03","chain_02",0.561898893949992,2,TRUE,0,0.561898893949992,NA,NA
+"saem_component","71","chain_03","chain_03",0.561898893949992,2,TRUE,0,0.561898893949992,NA,NA
+"saem_component","71","chain_03","chain_04",0.561898893949992,2,TRUE,0,0.561898893949992,NA,NA
+"saem_component","71","chain_04","chain_01",0.610851937833115,2,TRUE,8.88178419700125e-16,0.610851937833115,NA,NA
+"saem_component","71","chain_04","chain_02",0.610851937833115,2,TRUE,8.88178419700125e-16,0.610851937833115,NA,NA
+"saem_component","71","chain_04","chain_03",0.610851937833115,2,TRUE,8.88178419700125e-16,0.610851937833115,NA,NA
+"saem_component","71","chain_04","chain_04",0.610851937833115,2,TRUE,8.88178419700125e-16,0.610851937833115,NA,NA
+"saem_component","74","chain_03","chain_01",0.693147180559946,1,TRUE,8.88178419700125e-16,0.693147180559946,NA,NA
+"saem_component","74","chain_03","chain_02",0.693147180559945,1,TRUE,0,0.693147180559945,NA,NA
+"saem_component","74","chain_03","chain_03",0.693147180559946,1,TRUE,4.44089209850063e-16,0.693147180559946,NA,NA
+"saem_component","74","chain_03","chain_04",0.693147180559946,1,TRUE,8.88178419700125e-16,0.693147180559946,NA,NA
+"saem_component","74","chain_04","chain_01",0.693147180559945,1,TRUE,8.88178419700125e-16,0.693147180559945,NA,NA
+"saem_component","74","chain_04","chain_02",0.693147180559945,1,TRUE,0,0.693147180559945,NA,NA
+"saem_component","74","chain_04","chain_03",0.693147180559945,1,TRUE,4.44089209850063e-16,0.693147180559945,NA,NA
+"saem_component","74","chain_04","chain_04",0.693147180559945,1,TRUE,8.88178419700125e-16,0.693147180559945,NA,NA
+"saem_component","88","chain_03","chain_01",-0.306525160253261,2,TRUE,8.88178419700125e-16,-0.306525160253261,NA,NA
+"saem_component","88","chain_03","chain_02",-0.306525160253261,2,TRUE,0,-0.306525160253261,NA,NA
+"saem_component","88","chain_03","chain_03",-0.306525160253261,2,TRUE,0,-0.306525160253261,NA,NA
+"saem_component","88","chain_03","chain_04",-0.306525160253261,2,TRUE,0,-0.306525160253261,NA,NA
+"saem_component","88","chain_04","chain_01",-0.400477566597125,2,TRUE,8.88178419700125e-16,-0.400477566597125,NA,NA
+"saem_component","88","chain_04","chain_02",-0.400477566597125,2,TRUE,8.88178419700125e-16,-0.400477566597125,NA,NA
+"saem_component","88","chain_04","chain_03",-0.400477566597125,2,TRUE,8.88178419700125e-16,-0.400477566597125,NA,NA
+"saem_component","88","chain_04","chain_04",-0.400477566597125,2,TRUE,8.88178419700125e-16,-0.400477566597125,NA,NA
+"saem_component","105","chain_03","chain_01",-2.63108915996608,2,TRUE,0,-2.63108915996608,NA,NA
+"saem_component","105","chain_03","chain_02",-2.63108915996608,2,TRUE,8.88178419700125e-16,-2.63108915996608,NA,NA
+"saem_component","105","chain_03","chain_03",-2.63108915996608,2,TRUE,8.88178419700125e-16,-2.63108915996608,NA,NA
+"saem_component","105","chain_03","chain_04",-2.63108915996608,2,TRUE,8.88178419700125e-16,-2.63108915996608,NA,NA
+"saem_component","105","chain_04","chain_01",-3.38139475436597,2,TRUE,4.44089209850063e-16,-3.38139475436597,NA,NA
+"saem_component","105","chain_04","chain_02",-3.38139475436598,2,TRUE,4.44089209850063e-16,-3.38139475436598,NA,NA
+"saem_component","105","chain_04","chain_03",-3.38139475436598,2,TRUE,4.44089209850063e-16,-3.38139475436598,NA,NA
+"saem_component","105","chain_04","chain_04",-3.38139475436598,2,TRUE,4.44089209850063e-16,-3.38139475436598,NA,NA
+"saem_component","111","chain_03","chain_01",0.691145177889273,2,TRUE,0,0.691145177889273,NA,NA
+"saem_component","111","chain_03","chain_02",0.691145177889273,2,TRUE,0,0.691145177889273,NA,NA
+"saem_component","111","chain_03","chain_03",0.691145177889273,2,TRUE,0,0.691145177889273,NA,NA
+"saem_component","111","chain_03","chain_04",0.691145177889273,2,TRUE,0,0.691145177889273,NA,NA
+"saem_component","111","chain_04","chain_01",0.676001021724975,2,TRUE,0,0.676001021724975,NA,NA
+"saem_component","111","chain_04","chain_02",0.676001021724975,2,TRUE,0,0.676001021724975,NA,NA
+"saem_component","111","chain_04","chain_03",0.676001021724975,2,TRUE,0,0.676001021724975,NA,NA
+"saem_component","111","chain_04","chain_04",0.676001021724975,2,TRUE,0,0.676001021724975,NA,NA
+"saem_component","117","chain_03","chain_01",-0.738144546490682,2,TRUE,1.77635683940025e-15,-0.738144546490682,NA,NA
+"saem_component","117","chain_03","chain_02",-0.738144546490682,2,TRUE,1.77635683940025e-15,-0.738144546490682,NA,NA
+"saem_component","117","chain_03","chain_03",-0.738144546490682,2,TRUE,1.77635683940025e-15,-0.738144546490682,NA,NA
+"saem_component","117","chain_03","chain_04",-0.738144546490682,2,TRUE,1.77635683940025e-15,-0.738144546490682,NA,NA
+"saem_component","117","chain_04","chain_01",-0.978166135592243,2,TRUE,0,-0.978166135592243,NA,NA
+"saem_component","117","chain_04","chain_02",-0.978166135592243,2,TRUE,0,-0.978166135592243,NA,NA
+"saem_component","117","chain_04","chain_03",-0.978166135592243,2,TRUE,0,-0.978166135592243,NA,NA
+"saem_component","117","chain_04","chain_04",-0.978166135592243,2,TRUE,0,-0.978166135592243,NA,NA
+"saem_component","122","chain_03","chain_01",0.693147180559944,1,TRUE,4.44089209850063e-16,0.693147180559944,NA,NA
+"saem_component","122","chain_03","chain_02",0.693147180559944,1,TRUE,0,0.693147180559944,NA,NA
+"saem_component","122","chain_03","chain_03",0.693147180559944,1,TRUE,0,0.693147180559944,NA,NA
+"saem_component","122","chain_03","chain_04",0.693147180559944,1,TRUE,4.44089209850063e-16,0.693147180559944,NA,NA
+"saem_component","122","chain_04","chain_01",0.498348102254877,2,TRUE,0,0.498348102254877,NA,NA
+"saem_component","122","chain_04","chain_02",0.498348102254876,2,TRUE,0,0.498348102254876,NA,NA
+"saem_component","122","chain_04","chain_03",0.498348102254876,2,TRUE,0,0.498348102254876,NA,NA
+"saem_component","122","chain_04","chain_04",0.498348102254877,2,TRUE,0,0.498348102254877,NA,NA
+"priorcentral_component","3","chain_03","chain_01",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","3","chain_03","chain_02",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","3","chain_03","chain_03",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","3","chain_03","chain_04",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","3","chain_04","chain_01",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","3","chain_04","chain_02",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","3","chain_04","chain_03",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","3","chain_04","chain_04",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","6","chain_03","chain_01",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","6","chain_03","chain_02",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","6","chain_03","chain_03",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","6","chain_03","chain_04",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","6","chain_04","chain_01",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","6","chain_04","chain_02",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","6","chain_04","chain_03",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","6","chain_04","chain_04",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","16","chain_03","chain_01",-1.55116900431012,2,TRUE,0,-1.55116900431012,NA,NA
+"priorcentral_component","16","chain_03","chain_02",-1.55116900431012,2,TRUE,8.88178419700125e-16,-1.55116900431012,NA,NA
+"priorcentral_component","16","chain_03","chain_03",-1.55116900431012,2,TRUE,0,-1.55116900431012,NA,NA
+"priorcentral_component","16","chain_03","chain_04",-1.55116900431012,2,TRUE,0,-1.55116900431012,NA,NA
+"priorcentral_component","16","chain_04","chain_01",-1.58963528513792,2,TRUE,0,-1.58963528513792,NA,NA
+"priorcentral_component","16","chain_04","chain_02",-1.58963528513792,2,TRUE,0,-1.58963528513792,NA,NA
+"priorcentral_component","16","chain_04","chain_03",-1.58963528513792,2,TRUE,0,-1.58963528513792,NA,NA
+"priorcentral_component","16","chain_04","chain_04",-1.58963528513792,2,TRUE,0,-1.58963528513792,NA,NA
+"priorcentral_component","20","chain_03","chain_01",-3.17008566069877,2,TRUE,4.44089209850063e-16,-3.17008566069877,NA,NA
+"priorcentral_component","20","chain_03","chain_02",-3.17008566069877,2,TRUE,4.44089209850063e-16,-3.17008566069877,NA,NA
+"priorcentral_component","20","chain_03","chain_03",-3.17008566069877,2,TRUE,4.44089209850063e-16,-3.17008566069877,NA,NA
+"priorcentral_component","20","chain_03","chain_04",-3.17008566069877,2,TRUE,4.44089209850063e-16,-3.17008566069877,NA,NA
+"priorcentral_component","20","chain_04","chain_01",-3.07911388249304,2,TRUE,0,-3.07911388249304,NA,NA
+"priorcentral_component","20","chain_04","chain_02",-3.07911388249304,2,TRUE,8.88178419700125e-16,-3.07911388249304,NA,NA
+"priorcentral_component","20","chain_04","chain_03",-3.07911388249304,2,TRUE,8.88178419700125e-16,-3.07911388249304,NA,NA
+"priorcentral_component","20","chain_04","chain_04",-3.07911388249304,2,TRUE,0,-3.07911388249304,NA,NA
+"priorcentral_component","55","chain_03","chain_01",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","55","chain_03","chain_02",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","55","chain_03","chain_03",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","55","chain_03","chain_04",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","55","chain_04","chain_01",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","55","chain_04","chain_02",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","55","chain_04","chain_03",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","55","chain_04","chain_04",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","71","chain_03","chain_01",-1.40242374304978,2,TRUE,8.88178419700125e-16,-1.40242374304978,NA,NA
+"priorcentral_component","71","chain_03","chain_02",-1.40242374304978,2,TRUE,8.88178419700125e-16,-1.40242374304978,NA,NA
+"priorcentral_component","71","chain_03","chain_03",-1.40242374304977,2,TRUE,0,-1.40242374304977,NA,NA
+"priorcentral_component","71","chain_03","chain_04",-1.40242374304977,2,TRUE,0,-1.40242374304977,NA,NA
+"priorcentral_component","71","chain_04","chain_01",-1.84516024595517,2,TRUE,0,-1.84516024595517,NA,NA
+"priorcentral_component","71","chain_04","chain_02",-1.84516024595517,2,TRUE,0,-1.84516024595517,NA,NA
+"priorcentral_component","71","chain_04","chain_03",-1.84516024595517,2,TRUE,0,-1.84516024595517,NA,NA
+"priorcentral_component","71","chain_04","chain_04",-1.84516024595517,2,TRUE,0,-1.84516024595517,NA,NA
+"priorcentral_component","74","chain_03","chain_01",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","74","chain_03","chain_02",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","74","chain_03","chain_03",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","74","chain_03","chain_04",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","74","chain_04","chain_01",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","74","chain_04","chain_02",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","74","chain_04","chain_03",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","74","chain_04","chain_04",NA,0,FALSE,NA,NA,"not_attempted_after_pooled_failure","Chain-pair bridge was not attempted because the pooled bridge for this endpoint and patient did not converge."
+"priorcentral_component","88","chain_03","chain_01",0.234281295724666,2,TRUE,0,0.234281295724666,NA,NA
+"priorcentral_component","88","chain_03","chain_02",0.234281295724665,2,TRUE,8.88178419700125e-16,0.234281295724665,NA,NA
+"priorcentral_component","88","chain_03","chain_03",0.234281295724665,2,TRUE,8.88178419700125e-16,0.234281295724665,NA,NA
+"priorcentral_component","88","chain_03","chain_04",0.234281295724665,2,TRUE,8.88178419700125e-16,0.234281295724665,NA,NA
+"priorcentral_component","88","chain_04","chain_01",0.285178942233663,2,TRUE,8.88178419700125e-16,0.285178942233663,NA,NA
+"priorcentral_component","88","chain_04","chain_02",0.285178942233662,2,TRUE,0,0.285178942233662,NA,NA
+"priorcentral_component","88","chain_04","chain_03",0.285178942233662,2,TRUE,0,0.285178942233662,NA,NA
+"priorcentral_component","88","chain_04","chain_04",0.285178942233662,2,TRUE,0,0.285178942233662,NA,NA
+"priorcentral_component","105","chain_03","chain_01",0.656483196188355,2,TRUE,0,0.656483196188355,NA,NA
+"priorcentral_component","105","chain_03","chain_02",0.656483196188355,2,TRUE,0,0.656483196188355,NA,NA
+"priorcentral_component","105","chain_03","chain_03",0.656483196188355,2,TRUE,0,0.656483196188355,NA,NA
+"priorcentral_component","105","chain_03","chain_04",0.656483196188355,2,TRUE,0,0.656483196188355,NA,NA
+"priorcentral_component","105","chain_04","chain_01",0.676001021724975,2,TRUE,0,0.676001021724975,NA,NA
+"priorcentral_component","105","chain_04","chain_02",0.676001021724975,2,TRUE,0,0.676001021724975,NA,NA
+"priorcentral_component","105","chain_04","chain_03",0.676001021724975,2,TRUE,0,0.676001021724975,NA,NA
+"priorcentral_component","105","chain_04","chain_04",0.676001021724975,2,TRUE,0,0.676001021724975,NA,NA
+"priorcentral_component","111","chain_03","chain_01",-5.52146091786225,2,TRUE,0,-5.52146091786225,NA,NA
+"priorcentral_component","111","chain_03","chain_02",-5.52146091786225,2,TRUE,0,-5.52146091786225,NA,NA
+"priorcentral_component","111","chain_03","chain_03",-5.52146091786225,2,TRUE,0,-5.52146091786225,NA,NA
+"priorcentral_component","111","chain_03","chain_04",-5.52146091786225,2,TRUE,0,-5.52146091786225,NA,NA
+"priorcentral_component","111","chain_04","chain_01",-3.38139475436598,2,TRUE,8.88178419700125e-16,-3.38139475436598,NA,NA
+"priorcentral_component","111","chain_04","chain_02",-3.38139475436598,2,TRUE,0,-3.38139475436598,NA,NA
+"priorcentral_component","111","chain_04","chain_03",-3.38139475436598,2,TRUE,0,-3.38139475436598,NA,NA
+"priorcentral_component","111","chain_04","chain_04",-3.38139475436598,2,TRUE,0,-3.38139475436598,NA,NA
+"priorcentral_component","117","chain_03","chain_01",0.420025259439495,2,TRUE,0,0.420025259439495,NA,NA
+"priorcentral_component","117","chain_03","chain_02",0.420025259439495,2,TRUE,0,0.420025259439495,NA,NA
+"priorcentral_component","117","chain_03","chain_03",0.420025259439495,2,TRUE,0,0.420025259439495,NA,NA
+"priorcentral_component","117","chain_03","chain_04",0.420025259439495,2,TRUE,0,0.420025259439495,NA,NA
+"priorcentral_component","117","chain_04","chain_01",0.484892241739487,2,TRUE,0,0.484892241739487,NA,NA
+"priorcentral_component","117","chain_04","chain_02",0.484892241739487,2,TRUE,0,0.484892241739487,NA,NA
+"priorcentral_component","117","chain_04","chain_03",0.484892241739487,2,TRUE,0,0.484892241739487,NA,NA
+"priorcentral_component","117","chain_04","chain_04",0.484892241739487,2,TRUE,0,0.484892241739487,NA,NA
+"priorcentral_component","122","chain_03","chain_01",-511.95885026736,1,TRUE,1.13686837721616e-13,-511.95885026736,NA,NA
+"priorcentral_component","122","chain_03","chain_02",-511.95885026736,1,TRUE,1.13686837721616e-13,-511.95885026736,NA,NA
+"priorcentral_component","122","chain_03","chain_03",-511.95885026736,1,TRUE,1.13686837721616e-13,-511.95885026736,NA,NA
+"priorcentral_component","122","chain_03","chain_04",-511.95885026736,1,TRUE,1.13686837721616e-13,-511.95885026736,NA,NA
+"priorcentral_component","122","chain_04","chain_01",-1.03845836584836,2,TRUE,0,-1.03845836584836,NA,NA
+"priorcentral_component","122","chain_04","chain_02",-1.03845836584836,2,TRUE,0,-1.03845836584836,NA,NA
+"priorcentral_component","122","chain_04","chain_03",-1.03845836584836,2,TRUE,0,-1.03845836584836,NA,NA
+"priorcentral_component","122","chain_04","chain_04",-1.03845836584836,2,TRUE,0,-1.03845836584836,NA,NA

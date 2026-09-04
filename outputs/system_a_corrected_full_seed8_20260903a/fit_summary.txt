@@ -1,0 +1,59 @@
+----------------------------------------------------
+-----------------  Fixed effects  ------------------
+----------------------------------------------------
+                   Parameter Estimate
+1               u_log_lambda     1.72
+2                u_log_gamma    -6.80
+3                 u_log_mu_t    -5.84
+4                 u_log_mu_l    -3.62
+5                 u_log_mu_a     1.07
+6                    u_log_p     8.05
+7              u_log_alpha_l    -9.62
+8                       u_pi    -0.29
+9                  u_eta_rti    31.26
+10                  u_eta_pi     7.49
+11 beta_treat_nelf(u_eta_pi)   -11.42
+12             u_log_sigma_v    -0.68
+13             u_log_sigma_t    -1.23
+----------------------------------------------------
+-----------  Variance of random effects  -----------
+----------------------------------------------------
+                         Parameter Estimate
+u_log_lambda   omega2.u_log_lambda   0.2468
+u_log_mu_t       omega2.u_log_mu_t   2.6430
+u_log_mu_a       omega2.u_log_mu_a   0.0024
+u_log_p             omega2.u_log_p   0.4917
+u_log_alpha_l omega2.u_log_alpha_l   0.0022
+u_pi                   omega2.u_pi   0.5014
+u_eta_rti         omega2.u_eta_rti   3.0858
+u_eta_pi           omega2.u_eta_pi   0.2389
+----------------------------------------------------
+------  Correlation matrix of random effects  ------
+----------------------------------------------------
+                     omega2.u_log_lambda omega2.u_log_mu_t omega2.u_log_mu_a
+omega2.u_log_lambda  1.00                0.00              0.00             
+omega2.u_log_mu_t    0.00                1.00              0.00             
+omega2.u_log_mu_a    0.00                0.00              1.00             
+omega2.u_log_p       0.00                0.00              0.00             
+omega2.u_log_alpha_l 0.00                0.00              0.00             
+omega2.u_pi          0.00                0.00              0.00             
+omega2.u_eta_rti     0.00                0.00              0.00             
+omega2.u_eta_pi      0.00                0.00              0.00             
+                     omega2.u_log_p omega2.u_log_alpha_l omega2.u_pi
+omega2.u_log_lambda  0.00           0.00                 0.00       
+omega2.u_log_mu_t    0.00           0.00                 0.00       
+omega2.u_log_mu_a    0.00           0.00                 0.00       
+omega2.u_log_p       1.00           0.00                 0.00       
+omega2.u_log_alpha_l 0.00           1.00                 0.00       
+omega2.u_pi          0.00           0.00                 1.00       
+omega2.u_eta_rti     0.00           0.00                 0.00       
+omega2.u_eta_pi      0.00           0.00                 0.00       
+                     omega2.u_eta_rti omega2.u_eta_pi
+omega2.u_log_lambda  0.00             0.00           
+omega2.u_log_mu_t    0.00             0.00           
+omega2.u_log_mu_a    0.00             0.00           
+omega2.u_log_p       0.00             0.00           
+omega2.u_log_alpha_l 0.00             0.00           
+omega2.u_pi          0.00             0.00           
+omega2.u_eta_rti     1.00             0.00           
+omega2.u_eta_pi      0.00             1.00           

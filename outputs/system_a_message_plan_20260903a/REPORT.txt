@@ -1,0 +1,23 @@
+System A fixed-psi raw-message endpoint plan
+
+This ODE-free pilot used only chain_01 and chain_02 from each anchor bank.
+chain_03 and chain_04 remain held out for the final comparison.
+The two endpoints are the separated SAEM and prior-centred components
+of h = 0.5*g_SAEM + 0.5*g_priorcentral. Failed pilot gates cannot later
+count as validation.
+
+            endpoint_id minimum_relative_weight_ess maximum_normalized_weight
+         saem_component                       0.223               0.004484305
+ priorcentral_component                       0.002               0.500000000
+ maximum_split_log_ratio_difference cohort_chain_range
+                           3.588138          0.6283129
+                         882.845609        379.6864202
+ maximum_component_probability_chain_range maximum_mixture_identity_error
+                                     0.144                   1.665335e-15
+                                     0.144                   1.665335e-15
+ maximum_responsibility_split_rhat minimum_responsibility_mcmc_ess
+                          1.265225                        5.269295
+                          1.265225                        5.269295
+ maximum_component_weight_split_rhat minimum_component_weight_mcmc_ess passed
+                            1.488326                           3.65689  FALSE
+                            1.488326                           3.65689  FALSE

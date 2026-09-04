@@ -1,0 +1,3 @@
+"endpoint_id","stage","kind","axis","parameter","sign","step","pilot_gate_passed","diagnostic_fallback"
+"saem_component","core_component","population_component","reference_component",NA,0,0,FALSE,TRUE
+"priorcentral_component","core_component","population_component","reference_component",NA,0,0,FALSE,TRUE
