@@ -556,10 +556,21 @@ sab_bridge_log_ratio <- function(log_q0_on_0,
       sab_log_mean_exp(-log_denominator_on_1)
 
     if (!is.finite(updated_log_ratio)) {
-      stop(
-        "Bridge iteration produced a non-finite estimate; check bank overlap.",
-        call. = FALSE
-      )
+      stop(.sab_pm_bridge_nonconvergence(
+        message = paste0(
+          "Bridge iteration produced a non-finite estimate; ",
+          "check bank overlap."
+        ),
+        failure_code = "nonfinite_iteration",
+        log_ratio = log_ratio,
+        iterations = iteration,
+        final_increment = NA_real_,
+        history = history,
+        n0 = n0,
+        n1 = n1,
+        forward_log_ratio = forward_log_ratio,
+        reverse_log_ratio = reverse_log_ratio
+      ))
     }
     history <- c(history, updated_log_ratio)
     increment <- abs(updated_log_ratio - log_ratio)
@@ -582,8 +593,42 @@ sab_bridge_log_ratio <- function(log_q0_on_0,
     }
   }
 
-  stop(
-    "Bridge iteration did not converge within `max_iterations`.",
-    call. = FALSE
+  stop(.sab_pm_bridge_nonconvergence(
+    message = "Bridge iteration did not converge within `max_iterations`.",
+    failure_code = "max_iterations",
+    log_ratio = log_ratio,
+    iterations = max_iterations,
+    final_increment = increment,
+    history = history,
+    n0 = n0,
+    n1 = n1,
+    forward_log_ratio = forward_log_ratio,
+    reverse_log_ratio = reverse_log_ratio
+  ))
+}
+
+.sab_pm_bridge_nonconvergence <- function(message, failure_code, log_ratio,
+                                          iterations, final_increment, history,
+                                          n0, n1, forward_log_ratio,
+                                          reverse_log_ratio) {
+  estimate <- structure(list(
+    log_ratio = as.numeric(log_ratio),
+    iterations = as.integer(iterations),
+    converged = FALSE,
+    final_increment = as.numeric(final_increment),
+    history = as.numeric(history),
+    n0 = as.integer(n0),
+    n1 = as.integer(n1),
+    forward_log_ratio = as.numeric(forward_log_ratio),
+    reverse_log_ratio = as.numeric(reverse_log_ratio)
+  ), class = "sab_bridge_log_ratio")
+  structure(
+    list(
+      message = message,
+      call = NULL,
+      failure_code = failure_code,
+      estimate = estimate
+    ),
+    class = c("sab_bridge_nonconvergence", "error", "condition")
   )
 }

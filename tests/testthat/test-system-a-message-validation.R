@@ -334,3 +334,60 @@ testthat::test_that("full component assessment is coherent on an exact fixture",
     "bridge_chain_pair_instability" %in% names(assessed$patient_summary)
   )
 })
+
+testthat::test_that("bridge nonconvergence is recorded and fails assessment", {
+  fixture <- .sab_message_validation_fixture(separation = 3)
+  temporary <- tempfile(fileext = ".rds")
+  saveRDS(fixture$anchor, temporary)
+  on.exit(unlink(temporary), add = TRUE)
+  paths <- stats::setNames(
+    rep(normalizePath(temporary), length(fixture$design$patient_ids)),
+    fixture$design$patient_ids
+  )
+  hashes <- stats::setNames(rep(strrep("a", 64L), length(paths)), names(paths))
+  planned <- sab_system_a_plan_message_endpoints(
+    fixture$adapter, fixture$anchor, fixture$artifacts,
+    temporary, strrep("b", 64L), paths, hashes
+  )
+  plan_sha256 <- strrep("c", 64L)
+  candidates <- .sab_message_candidate_artifacts(
+    fixture, planned$plan, plan_sha256
+  )
+
+  assessed <- sab_system_a_assess_messages(
+    fixture$adapter, fixture$anchor, planned$plan, plan_sha256,
+    fixture$artifacts, candidates,
+    bridge_tolerance = 1e-16, bridge_max_iterations = 1L
+  )
+
+  testthat::expect_false(assessed$calibration_passed)
+  testthat::expect_identical(
+    assessed$status, "inconclusive_calibration_or_mixing_failure"
+  )
+  testthat::expect_true(any(!assessed$patient_summary$bridge_converged))
+  testthat::expect_true(any(!assessed$bridge_chain_pairs$converged))
+  testthat::expect_true(any(
+    assessed$patient_summary$bridge_failure_code == "max_iterations",
+    na.rm = TRUE
+  ))
+  testthat::expect_true(any(
+    assessed$bridge_chain_pairs$failure_code ==
+      "not_attempted_after_pooled_failure",
+    na.rm = TRUE
+  ))
+  testthat::expect_true(all(
+    assessed$endpoint_summary$pooled_bridge_failures > 0L
+  ))
+  testthat::expect_true(all(
+    !assessed$endpoint_summary$bridge_convergence_passed
+  ))
+  testthat::expect_true(all(!assessed$endpoint_summary$validated))
+  unavailable <- assessed$mcmc_diagnostics[
+    !assessed$mcmc_diagnostics$diagnostic_available, , drop = FALSE
+  ]
+  testthat::expect_gt(nrow(unavailable), 0L)
+  testthat::expect_true(all(
+    unavailable$quantity %in%
+      c("reference_bridge_score", "candidate_bridge_score")
+  ))
+})

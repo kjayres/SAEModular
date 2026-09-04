@@ -156,7 +156,8 @@ sab_system_a_plan_message_endpoints <- function(
 
 sab_system_a_assess_messages <- function(
     adapter, canonical_anchor, plan, plan_sha256, anchor_bank_artifacts,
-    candidate_bank_artifacts) {
+    candidate_bank_artifacts, bridge_tolerance = 1e-10,
+    bridge_max_iterations = 10000L) {
   design <- sab_system_a_message_design()
   .sab_me_validate_plan(plan, adapter, canonical_anchor, design)
   .sab_me_validate_inputs(
@@ -262,13 +263,18 @@ sab_system_a_assess_messages <- function(
         candidate_evaluations, function(value) value$population$log_weights
       ), use.names = FALSE)
       pooled_bridge <- .sab_me_bridge(
-        anchor_evaluations, candidate_evaluations
+        anchor_evaluations, candidate_evaluations,
+        endpoint_id = endpoint_id, patient_id = patient_id,
+        bridge_scope = "pooled", tolerance = bridge_tolerance,
+        max_iterations = bridge_max_iterations
       )
-      bridge_scores <- .sab_me_bridge_scores(
-        anchor_evaluations, candidate_evaluations, pooled_bridge$log_ratio
-      )
-      mcmc_quantities$reference_bridge_score <- bridge_scores$reference
-      mcmc_quantities$candidate_bridge_score <- bridge_scores$candidate
+      if (pooled_bridge$converged) {
+        bridge_scores <- .sab_me_bridge_scores(
+          anchor_evaluations, candidate_evaluations, pooled_bridge$log_ratio
+        )
+        mcmc_quantities$reference_bridge_score <- bridge_scores$reference
+        mcmc_quantities$candidate_bridge_score <- bridge_scores$candidate
+      }
       for (quantity in names(mcmc_quantities)) {
         diagnostic <- sab_mcmc_scalar_diagnostics(mcmc_quantities[[quantity]])
         mcmc_index <- mcmc_index + 1L
@@ -278,39 +284,91 @@ sab_system_a_assess_messages <- function(
           mcmc_ess = diagnostic$mcmc_ess,
           relative_mcmc_ess = diagnostic$relative_mcmc_ess,
           chain_mean_range = diagnostic$chain_mean_range,
+          diagnostic_available = TRUE,
+          failure_code = NA_character_, failure_message = NA_character_,
           stringsAsFactors = FALSE
         )
       }
+      if (!pooled_bridge$converged) {
+        for (quantity in c("reference_bridge_score",
+                           "candidate_bridge_score")) {
+          mcmc_index <- mcmc_index + 1L
+          mcmc_rows[[mcmc_index]] <- data.frame(
+            endpoint_id = endpoint_id, patient_id = patient_id,
+            quantity = quantity, split_rhat = NA_real_, mcmc_ess = NA_real_,
+            relative_mcmc_ess = NA_real_, chain_mean_range = NA_real_,
+            diagnostic_available = FALSE,
+            failure_code = pooled_bridge$failure_code,
+            failure_message = pooled_bridge$failure_message,
+            stringsAsFactors = FALSE
+          )
+        }
+      }
       pair_bridges <- numeric()
+      pair_converged <- logical()
       for (anchor_name in names(anchor_evaluations)) {
         for (candidate_name in names(candidate_evaluations)) {
-          value <- .sab_me_bridge(
-            anchor_evaluations[anchor_name],
-            candidate_evaluations[candidate_name]
-          )
+          if (pooled_bridge$converged) {
+            value <- .sab_me_bridge(
+              anchor_evaluations[anchor_name],
+              candidate_evaluations[candidate_name],
+              endpoint_id = endpoint_id, patient_id = patient_id,
+              bridge_scope = "chain_pair", anchor_chain = anchor_name,
+              candidate_chain = candidate_name,
+              tolerance = bridge_tolerance,
+              max_iterations = bridge_max_iterations
+            )
+          } else {
+            value <- list(
+              log_ratio = NA_real_, last_log_ratio = NA_real_,
+              iterations = 0L, converged = FALSE,
+              final_increment = NA_real_,
+              failure_code = "not_attempted_after_pooled_failure",
+              failure_message = paste0(
+                "Chain-pair bridge was not attempted because the pooled ",
+                "bridge for this endpoint and patient did not converge."
+              )
+            )
+          }
           pair_name <- paste(anchor_name, candidate_name, sep = "__")
           pair_bridges[[pair_name]] <- value$log_ratio
+          pair_converged[[pair_name]] <- value$converged
           bridge_index <- bridge_index + 1L
           bridge_rows[[bridge_index]] <- data.frame(
             endpoint_id = endpoint_id, patient_id = patient_id,
             anchor_chain = anchor_name, candidate_chain = candidate_name,
             log_ratio = value$log_ratio, iterations = value$iterations,
+            converged = value$converged,
+            final_increment = value$final_increment,
+            last_log_ratio = value$last_log_ratio,
+            failure_code = value$failure_code,
+            failure_message = value$failure_message,
             stringsAsFactors = FALSE
           )
         }
       }
-      bridge_matrix <- matrix(
-        pair_bridges,
-        nrow = length(anchor_evaluations),
-        ncol = length(candidate_evaluations),
-        byrow = TRUE
-      )
       # These crossed chain-pair estimates share draws.  This is an empirical
-      # instability scale, not an independent replicate MCSE.
-      bridge_chain_pair_instability <- sqrt(
-        stats::var(rowMeans(bridge_matrix)) / nrow(bridge_matrix) +
-          stats::var(colMeans(bridge_matrix)) / ncol(bridge_matrix)
-      )
+      # instability scale, not an independent replicate MCSE.  It is undefined
+      # if even one chain-pair bridge failed; silently dropping that pair would
+      # make poor overlap look better than it is.
+      if (all(pair_converged)) {
+        bridge_matrix <- matrix(
+          pair_bridges,
+          nrow = length(anchor_evaluations),
+          ncol = length(candidate_evaluations),
+          byrow = TRUE
+        )
+        bridge_chain_pair_instability <- sqrt(
+          stats::var(rowMeans(bridge_matrix)) / nrow(bridge_matrix) +
+            stats::var(colMeans(bridge_matrix)) / ncol(bridge_matrix)
+        )
+        bridge_pair_sd <- stats::sd(pair_bridges)
+        bridge_pair_range <- diff(range(pair_bridges))
+      } else {
+        bridge_chain_pair_instability <- NA_real_
+        bridge_pair_sd <- NA_real_
+        bridge_pair_range <- NA_real_
+      }
       forward_chain <- vapply(
         anchor_evaluations,
         function(value) value$diagnostic$log_ratio,
@@ -331,18 +389,28 @@ sab_system_a_assess_messages <- function(
         function(value) value$diagnostic$batch$log_scale_mcse^2,
         numeric(1L)
       )) / length(candidate_evaluations))
-      bridge_pair_sd <- stats::sd(pair_bridges)
       forward_ratio <- sab_log_mean_exp(forward_weights)
       reverse_ratio <- -sab_log_mean_exp(reverse_weights)
       bridge_ratio <- pooled_bridge$log_ratio
-      forward_tolerance <- max(
-        design$evaluation_gates$minimum_agreement_tolerance,
-        2 * sqrt(forward_mcse^2 + bridge_chain_pair_instability^2)
-      )
-      reverse_tolerance <- max(
-        design$evaluation_gates$minimum_agreement_tolerance,
-        2 * sqrt(reverse_mcse^2 + bridge_chain_pair_instability^2)
-      )
+      bridge_diagnostics_available <- pooled_bridge$converged &&
+        all(pair_converged) && is.finite(bridge_chain_pair_instability)
+      if (bridge_diagnostics_available) {
+        forward_tolerance <- max(
+          design$evaluation_gates$minimum_agreement_tolerance,
+          2 * sqrt(forward_mcse^2 + bridge_chain_pair_instability^2)
+        )
+        reverse_tolerance <- max(
+          design$evaluation_gates$minimum_agreement_tolerance,
+          2 * sqrt(reverse_mcse^2 + bridge_chain_pair_instability^2)
+        )
+        forward_bridge_passed <-
+          abs(forward_ratio - bridge_ratio) <= forward_tolerance
+        reverse_bridge_passed <-
+          abs(reverse_ratio - bridge_ratio) <= reverse_tolerance
+      } else {
+        forward_tolerance <- reverse_tolerance <- NA_real_
+        forward_bridge_passed <- reverse_bridge_passed <- FALSE
+      }
       patient_index <- patient_index + 1L
       patient_rows[[patient_index]] <- data.frame(
         endpoint_id = endpoint_id,
@@ -352,21 +420,27 @@ sab_system_a_assess_messages <- function(
         forward_log_ratio = forward_ratio,
         reverse_log_ratio = reverse_ratio,
         bridge_log_ratio = bridge_ratio,
+        bridge_last_log_ratio = pooled_bridge$last_log_ratio,
+        bridge_converged = pooled_bridge$converged,
+        bridge_iterations = pooled_bridge$iterations,
+        bridge_final_increment = pooled_bridge$final_increment,
+        bridge_failure_code = pooled_bridge$failure_code,
+        bridge_failure_message = pooled_bridge$failure_message,
+        bridge_pair_failure_count = sum(!pair_converged),
+        all_bridge_pairs_converged = all(pair_converged),
         forward_bridge_difference = abs(forward_ratio - bridge_ratio),
         reverse_bridge_difference = abs(reverse_ratio - bridge_ratio),
         forward_bridge_tolerance = forward_tolerance,
         reverse_bridge_tolerance = reverse_tolerance,
-        forward_bridge_passed =
-          abs(forward_ratio - bridge_ratio) <= forward_tolerance,
-        reverse_bridge_passed =
-          abs(reverse_ratio - bridge_ratio) <= reverse_tolerance,
+        forward_bridge_passed = forward_bridge_passed,
+        reverse_bridge_passed = reverse_bridge_passed,
         forward_log_mcse = forward_mcse,
         reverse_log_mcse = reverse_mcse,
         bridge_pair_sd = bridge_pair_sd,
         bridge_chain_pair_instability = bridge_chain_pair_instability,
         forward_chain_range = diff(range(forward_chain)),
         reverse_chain_range = diff(range(reverse_chain)),
-        bridge_pair_range = diff(range(pair_bridges)),
+        bridge_pair_range = bridge_pair_range,
         stringsAsFactors = FALSE
       )
     }
@@ -802,7 +876,14 @@ sab_system_a_assess_messages <- function(
   }))
 }
 
-.sab_me_bridge <- function(anchor_evaluations, candidate_evaluations) {
+.sab_me_bridge <- function(anchor_evaluations, candidate_evaluations,
+                           endpoint_id = NA_character_,
+                           patient_id = NA_character_,
+                           bridge_scope = "unspecified",
+                           anchor_chain = NA_character_,
+                           candidate_chain = NA_character_,
+                           tolerance = 1e-10,
+                           max_iterations = 10000L) {
   q0_on_0 <- q1_on_0 <- q0_on_1 <- q1_on_1 <- numeric()
   for (value in anchor_evaluations) {
     q0_on_0 <- c(q0_on_0,
@@ -818,7 +899,42 @@ sab_system_a_assess_messages <- function(
     q1_on_1 <- c(q1_on_1,
                  value$chain$loglik + value$population$log_g_anchor)
   }
-  sab_bridge_log_ratio(q0_on_0, q1_on_0, q0_on_1, q1_on_1)
+  result <- tryCatch(
+    sab_bridge_log_ratio(
+      q0_on_0, q1_on_0, q0_on_1, q1_on_1,
+      tolerance = tolerance, max_iterations = max_iterations
+    ),
+    sab_bridge_nonconvergence = function(condition) {
+      partial <- condition$estimate
+      structure(list(
+        log_ratio = NA_real_,
+        last_log_ratio = partial$log_ratio,
+        iterations = partial$iterations,
+        converged = FALSE,
+        final_increment = partial$final_increment,
+        history = partial$history,
+        n0 = partial$n0,
+        n1 = partial$n1,
+        forward_log_ratio = partial$forward_log_ratio,
+        reverse_log_ratio = partial$reverse_log_ratio,
+        failure_code = condition$failure_code,
+        failure_message = conditionMessage(condition)
+      ), class = c("sab_message_bridge_failure", "list"))
+    }
+  )
+  if (result$converged) {
+    result$last_log_ratio <- result$log_ratio
+    result$failure_code <- NA_character_
+    result$failure_message <- NA_character_
+  }
+  result$context <- list(
+    endpoint_id = endpoint_id,
+    patient_id = patient_id,
+    bridge_scope = bridge_scope,
+    anchor_chain = anchor_chain,
+    candidate_chain = candidate_chain
+  )
+  result
 }
 
 .sab_me_bridge_scores <- function(anchor_evaluations, candidate_evaluations,
@@ -869,24 +985,38 @@ sab_system_a_assess_messages <- function(
       anyNA(prior$patient_id)) {
     stop("Cannot pair component bridge estimates by patient.", call. = FALSE)
   }
-  closure <- 0.5 * exp(saem$bridge_log_ratio) +
-    0.5 * exp(prior$bridge_log_ratio)
-  conservative_instability <-
-    0.5 * exp(saem$bridge_log_ratio) *
-      saem$bridge_chain_pair_instability +
-    0.5 * exp(prior$bridge_log_ratio) *
-      prior$bridge_chain_pair_instability
-  tolerance <- pmax(0.02, 2 * conservative_instability)
+  estimates_available <- saem$bridge_converged & prior$bridge_converged &
+    saem$all_bridge_pairs_converged & prior$all_bridge_pairs_converged &
+    is.finite(saem$bridge_log_ratio) & is.finite(prior$bridge_log_ratio) &
+    is.finite(saem$bridge_chain_pair_instability) &
+    is.finite(prior$bridge_chain_pair_instability)
+  closure <- conservative_instability <- tolerance <-
+    rep(NA_real_, nrow(saem))
+  closure[estimates_available] <-
+    0.5 * exp(saem$bridge_log_ratio[estimates_available]) +
+    0.5 * exp(prior$bridge_log_ratio[estimates_available])
+  conservative_instability[estimates_available] <-
+    0.5 * exp(saem$bridge_log_ratio[estimates_available]) *
+      saem$bridge_chain_pair_instability[estimates_available] +
+    0.5 * exp(prior$bridge_log_ratio[estimates_available]) *
+      prior$bridge_chain_pair_instability[estimates_available]
+  tolerance[estimates_available] <- pmax(
+    0.02, 2 * conservative_instability[estimates_available]
+  )
+  passed <- estimates_available
+  passed[estimates_available] <-
+    abs(closure[estimates_available] - 1) <= tolerance[estimates_available]
   data.frame(
     patient_id = saem$patient_id,
     treatment = saem$treatment,
+    bridge_estimates_available = estimates_available,
     bridge_saem_log_ratio = saem$bridge_log_ratio,
     bridge_priorcentral_log_ratio = prior$bridge_log_ratio,
     mixture_identity = closure,
     absolute_identity_error = abs(closure - 1),
     conservative_identity_instability = conservative_instability,
     tolerance = tolerance,
-    passed = abs(closure - 1) <= tolerance,
+    passed = passed,
     stringsAsFactors = FALSE
   )
 }
@@ -907,9 +1037,23 @@ sab_system_a_assess_messages <- function(
     reverse_replicates <- aggregate(
       oriented_log_ratio ~ chain, reverse, sum
     )$oriented_log_ratio
-    bridge_chain_pair_totals <- aggregate(
-      log_ratio ~ anchor_chain + candidate_chain, bridge, sum
-    )$log_ratio
+    bridge_groups <- split(
+      bridge,
+      interaction(bridge$anchor_chain, bridge$candidate_chain, drop = TRUE)
+    )
+    bridge_chain_pair_totals <- vapply(bridge_groups, function(value) {
+      if (nrow(value) != nrow(patient) || !all(value$converged) ||
+          any(!is.finite(value$log_ratio))) {
+        return(NA_real_)
+      }
+      sum(value$log_ratio)
+    }, numeric(1L))
+    bridge_convergence_passed <-
+      nrow(patient) > 0L && nrow(bridge) > 0L &&
+      all(patient$bridge_converged) &&
+      all(patient$all_bridge_pairs_converged) && all(bridge$converged) &&
+      all(is.finite(patient$bridge_log_ratio)) &&
+      all(is.finite(bridge_chain_pair_totals))
     forward_mcse <- sqrt(sum(vapply(
       split(forward, forward$patient_id),
       function(value) mean(value$batch_log_mcse^2) / nrow(value),
@@ -920,31 +1064,43 @@ sab_system_a_assess_messages <- function(
       function(value) mean(value$batch_log_mcse^2) / nrow(value),
       numeric(1L)
     )))
-    bridge_spread <- stats::sd(bridge_chain_pair_totals)
+    bridge_spread <- if (bridge_convergence_passed) {
+      stats::sd(bridge_chain_pair_totals)
+    } else {
+      NA_real_
+    }
     forward_ratio <- sum(patient$forward_log_ratio)
     reverse_ratio <- sum(patient$reverse_log_ratio)
-    bridge_ratio <- sum(patient$bridge_log_ratio)
-    forward_tolerance <- max(
-      gates$minimum_agreement_tolerance,
-      2 * sqrt(forward_mcse^2 + bridge_spread^2)
-    )
-    reverse_tolerance <- max(
-      gates$minimum_agreement_tolerance,
-      2 * sqrt(reverse_mcse^2 + bridge_spread^2)
-    )
+    bridge_ratio <- if (bridge_convergence_passed) {
+      sum(patient$bridge_log_ratio)
+    } else {
+      NA_real_
+    }
+    if (bridge_convergence_passed && is.finite(bridge_spread)) {
+      forward_tolerance <- max(
+        gates$minimum_agreement_tolerance,
+        2 * sqrt(forward_mcse^2 + bridge_spread^2)
+      )
+      reverse_tolerance <- max(
+        gates$minimum_agreement_tolerance,
+        2 * sqrt(reverse_mcse^2 + bridge_spread^2)
+      )
+    } else {
+      forward_tolerance <- reverse_tolerance <- NA_real_
+    }
     overlap_passed <-
       min(diagnostic$relative_weight_ess) >=
         gates$minimum_relative_weight_ess &&
       max(diagnostic$max_normalized_weight) <=
         gates$maximum_normalized_weight
-    replication_passed <-
+    replication_passed <- bridge_convergence_passed &&
       diff(range(forward_replicates)) <=
         gates$maximum_cohort_chain_range &&
       diff(range(reverse_replicates)) <=
         gates$maximum_cohort_chain_range &&
       diff(range(bridge_chain_pair_totals)) <=
         gates$maximum_cohort_chain_range
-    agreement_passed <-
+    agreement_passed <- bridge_convergence_passed &&
       abs(forward_ratio - bridge_ratio) <= forward_tolerance &&
       abs(reverse_ratio - bridge_ratio) <= reverse_tolerance &&
       all(patient$forward_bridge_passed) &&
@@ -966,11 +1122,13 @@ sab_system_a_assess_messages <- function(
             identity$saem_weight_mcmc_ess,
             identity$prior_weight_mcmc_ess)) >= gates$minimum_mcmc_ess
     endpoint_mcmc <- mcmc[mcmc$endpoint_id == endpoint_id, ]
-    mcmc_passed <-
+    mcmc_passed <- nrow(endpoint_mcmc) > 0L &&
+      all(endpoint_mcmc$diagnostic_available) &&
       all(is.finite(endpoint_mcmc$split_rhat)) &&
       max(endpoint_mcmc$split_rhat) <= gates$maximum_split_rhat &&
       min(endpoint_mcmc$mcmc_ess) >= gates$minimum_mcmc_ess
-    candidate_augmented_identity_passed <- all(bridge_identity$passed)
+    candidate_augmented_identity_passed <-
+      nrow(bridge_identity) > 0L && all(bridge_identity$passed)
     data.frame(
       endpoint_id = endpoint_id, axis = endpoint$axis,
       sign = endpoint$sign, step = endpoint$step,
@@ -983,13 +1141,20 @@ sab_system_a_assess_messages <- function(
       reverse_bridge_difference = abs(reverse_ratio - bridge_ratio),
       forward_agreement_tolerance = forward_tolerance,
       reverse_agreement_tolerance = reverse_tolerance,
+      pooled_bridge_failures = sum(!patient$bridge_converged),
+      chain_pair_bridge_failures = sum(!bridge$converged),
+      bridge_convergence_passed = bridge_convergence_passed,
       minimum_relative_weight_ess =
         min(diagnostic$relative_weight_ess),
       maximum_normalized_weight =
         max(diagnostic$max_normalized_weight),
       forward_chain_range = diff(range(forward_replicates)),
       reverse_chain_range = diff(range(reverse_replicates)),
-      bridge_pair_range = diff(range(bridge_chain_pair_totals)),
+      bridge_pair_range = if (bridge_convergence_passed) {
+        diff(range(bridge_chain_pair_totals))
+      } else {
+        NA_real_
+      },
       overlap_passed = overlap_passed,
       replication_passed = replication_passed,
       agreement_passed = agreement_passed,

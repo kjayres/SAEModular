@@ -333,3 +333,26 @@ testthat::test_that("message estimators fail closed on malformed input", {
     "did not converge"
   )
 })
+
+testthat::test_that("bridge nonconvergence preserves its partial audit trail", {
+  condition <- tryCatch(
+    {
+      sab_bridge_log_ratio(
+        c(0, 0), c(-1, 0), c(0, 0), c(0, 1),
+        tolerance = 1e-16,
+        max_iterations = 1,
+        initial_log_ratio = 100
+      )
+      NULL
+    },
+    sab_bridge_nonconvergence = function(value) value
+  )
+
+  testthat::expect_s3_class(condition, "sab_bridge_nonconvergence")
+  testthat::expect_identical(condition$failure_code, "max_iterations")
+  testthat::expect_false(condition$estimate$converged)
+  testthat::expect_identical(condition$estimate$iterations, 1L)
+  testthat::expect_true(is.finite(condition$estimate$log_ratio))
+  testthat::expect_true(is.finite(condition$estimate$final_increment))
+  testthat::expect_length(condition$estimate$history, 2L)
+})
