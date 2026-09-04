@@ -1,0 +1,126 @@
+{
+  "schema_version": "sab_system_a_prepared_anchor_manifest_v1",
+  "purpose": "SAEM-anchored fixed-psi patient-message experiment",
+  "production_gate": {
+    "passed": true,
+    "minimum_k1": 300,
+    "minimum_k2": 100,
+    "observed_k1": 300,
+    "observed_k2": 100,
+    "saem_status": "completed"
+  },
+  "saem": {
+    "run_directory": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/saem_anchored_bayes/outputs/system_a_corrected_full_seed8_20260903a",
+    "run_tag": "system_a_corrected_full_seed8_20260903a",
+    "patients": 115,
+    "artifact_sha256": {
+      "population": "240f0da98b139463be2a43fecb99ae7c71dbf50ade23bfc3bd2c4b116dc4c063",
+      "omega": "a5090f85f6cf1aab320c070f531478f7f22da719b20d70a75f6300ef9c0718d7",
+      "individuals": "f9cd3bc3a795d8ae2a7e51a4881277f7dc8dda2157b924ee71533e13b8f2f8cd",
+      "run_config": "b85f450af2c0a9367cd513ef78f6c3db6674ce70d66ab3c91ee4464bdfb99271",
+      "input_data": "9397f5f6abb4a934f5885ef8305493c2dd5532b85be62738c7b78f3863d3f1f2",
+      "audit": "64ce35eddd94e2e87891b6330f0be16d915dcc718f3c1431326ea5dd791885ac"
+    }
+  },
+  "exact_target": {
+    "numerical_target": "sealed_deSolve_VODE_BDF",
+    "target_fingerprint": "123fc00a2c0151215f9c550613819d4563a02c5bbe789eee5f2aee2c20844925",
+    "likelihood_signature": "123fc00a2c0151215f9c550613819d4563a02c5bbe789eee5f2aee2c20844925|sysa_r_vode_bdf|stan_rhs_clamp|stan_sequential_time_eps|stan_obs_semantics_v1|implementation_sha256=ea7931622ab3f888fba491b4d859c6678b2906d107a9d3c92423ad2c51072b80",
+    "oracle_audit": {
+      "status": "stan_bdf_oracle_audit_passed",
+      "certificate_sha256": "db341c06d16d891132f18d3f25d6c8f765d7e97f1b84a062e317c27d7c323deb",
+      "audit_contract_fingerprint": "7f4c08e21cb717922335112745c552d5329eb055d1fed5a58ae47332b8a5a3c2",
+      "max_abs_loglik_error": 0.00346003272699136,
+      "declared_max_abs_loglik_error": 0.05,
+      "desolve_version": "1.42",
+      "r_version": "R version 4.4.3 (2025-02-28)",
+      "platform": "x86_64-conda-linux-gnu"
+    },
+    "source_validation": {
+      "schema_version": "sab_system_a_source_validation_v1",
+      "workspace_root": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0",
+      "upstream_repository": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/.worktrees/modular_bayes_system_a_factor_v1",
+      "upstream_commit": "a3e0367b06c82ad4d07280c99f10d4f9bac69978",
+      "upstream_clean": true,
+      "upstream_source_root": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/.worktrees/modular_bayes_system_a_factor_v1/research/system_a_modular_v0",
+      "canonical_source_root": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/modular_bayes/research/system_a_modular_v0",
+      "source_sha256": ["d4d2221245f7c215107d844b5faf4186436c5e53be0a4a3d4593dc9f294b1816", "a6d61d490fe42463a2181e87a6f25e75a95f1dea09452e0ea88981fc697e5fef", "ea7931622ab3f888fba491b4d859c6678b2906d107a9d3c92423ad2c51072b80", "1e0766171c91b6ffb0f1021e081b6f07cd5da83349f61d0b390025e3590258ca", "f9bfff5ad732cfb94a5796ccf62c087eb0b969f715b5d1ec8db66cbbf96564d6", "e785ca4cf6c78711968d4e6a7fdb5fddbe37960cfa445548bfdcd62c6dec3eec", "d06d9e504446dc69711cc76aa8e7fc1cb58269bb58079a51d5d4f1ebe0652c24"],
+      "canonical_source_sha256": ["d4d2221245f7c215107d844b5faf4186436c5e53be0a4a3d4593dc9f294b1816", "a6d61d490fe42463a2181e87a6f25e75a95f1dea09452e0ea88981fc697e5fef", "ea7931622ab3f888fba491b4d859c6678b2906d107a9d3c92423ad2c51072b80", "1e0766171c91b6ffb0f1021e081b6f07cd5da83349f61d0b390025e3590258ca", "f9bfff5ad732cfb94a5796ccf62c087eb0b969f715b5d1ec8db66cbbf96564d6", "e785ca4cf6c78711968d4e6a7fdb5fddbe37960cfa445548bfdcd62c6dec3eec", "d06d9e504446dc69711cc76aa8e7fc1cb58269bb58079a51d5d4f1ebe0652c24"],
+      "oracle_directory": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/modular_bayes/research/system_a_modular_v0/outputs/production_v3/oracle_audit",
+      "oracle_certificate_sha256": "db341c06d16d891132f18d3f25d6c8f765d7e97f1b84a062e317c27d7c323deb",
+      "target_fingerprint": "123fc00a2c0151215f9c550613819d4563a02c5bbe789eee5f2aee2c20844925"
+    },
+    "validation_schema": "sab_system_a_saem_exact_validation_v1",
+    "validation": {
+      "patients": 115,
+      "prediction_calls": 115,
+      "ode_integrations": 110,
+      "unknown_ode_counts": 0,
+      "prediction_failures": 0,
+      "likelihood_calls": 115,
+      "nonfinite_loglik": 0,
+      "ordinary_target_rejections": 0,
+      "callback_errors": 0,
+      "completed_without_callback_error": true,
+      "passed": true
+    }
+  },
+  "anchor_coordinates": {
+    "eta": {
+      "mu_log_lambda": 1.71537801559682,
+      "mu_log_mu_t": -5.84495002714304,
+      "mu_log_mu_a": 1.07294012071629,
+      "mu_log_p": 8.05072832158317,
+      "mu_log_alpha_l": -9.62335283602546,
+      "mu_u_pi": -0.28574280602239,
+      "mu_u_eta_rti": 31.2589195318238,
+      "mu_u_eta_pi": 7.48652482662968,
+      "beta_nelf": -11.4206943562299,
+      "log_omega_lambda": -0.699541247276678,
+      "log_omega_mu_t": 0.485954133580945,
+      "log_omega_mu_a": -3.01943669985725,
+      "log_omega_p": -0.354919576405949,
+      "log_omega_alpha_l": -3.0686165458177,
+      "log_omega_pi": -0.345148752463087,
+      "log_omega_eta_rti": 0.563411358840314,
+      "log_omega_eta_pi": -0.71588220621357
+    },
+    "psi": {
+      "log_gamma_pop": -6.79815254910189,
+      "log_mu_l_pop": -3.62445858115186,
+      "log_sigma_v": -0.678877073072488,
+      "log_sigma_t": -1.22672554601078
+    }
+  },
+  "inputs": {
+    "source_paths": {
+      "R/system_a_adapter.R": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/saem_anchored_bayes/R/system_a_adapter.R",
+      "R/system_a_saem_anchor.R": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/saem_anchored_bayes/R/system_a_saem_anchor.R",
+      "experiments/system_a_prepare_anchor.R": "/ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/projects/saem_anchored_bayes/experiments/system_a_prepare_anchor.R"
+    },
+    "source_sha256": {
+      "R/system_a_adapter.R": "eaed12dc3984ee48797f69b0f7992de4866f6b5fb41736a77b3aa284b8ed1235",
+      "R/system_a_saem_anchor.R": "f076b7c8c4b5025516bd79bfc10f959a2751d3159b6297e1a25e1527cb6d11bf",
+      "experiments/system_a_prepare_anchor.R": "ed520873ab013762caefd6d217f446c6a0a78409404c3df905bfe069135dee04"
+    }
+  },
+  "outputs": {
+    "files": {
+      "canonical_anchor": "canonical_anchor.rds",
+      "exact_validation_ledger": "exact_validation_ledger.csv",
+      "exact_validation_summary": "exact_validation_summary.csv"
+    },
+    "sha256": {
+      "canonical_anchor": "ce601409d84bfe5492667e64e688b8a81b34947b8f5372be6767ff2d117130ec",
+      "exact_validation_ledger": "d835499e192a1e518ddfea261825de954746166b5a80d73e1998e267a9a3bbce",
+      "exact_validation_summary": "a2abee3f907c4fb5a5b77e8537e8f4849aa1c7b52c8ae64ea8de05697ef5d8b9"
+    }
+  },
+  "execution": {
+    "slurm_job_id": "122172",
+    "hostname": "garganey.stats.ox.ac.uk",
+    "completed_utc": "2026-09-04 12:01:31 UTC",
+    "r_version": "R version 4.4.3 (2025-02-28)",
+    "session_info": ["R version 4.4.3 (2025-02-28)", "Platform: x86_64-conda-linux-gnu", "Running under: Fedora Linux 42 (Adams)", "", "Matrix products: default", "BLAS/LAPACK: /ceph/volumes/homes_rstudent/reub0840/f341ced6-637f-43b2-a7a8-b9e1a63a82f0/software/miniforge3/envs/model_fusion_r/lib/libopenblasp-r0.3.30.so;  LAPACK version 3.12.0", "", "locale:", " [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       ", " [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   ", " [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          ", "[10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   ", "", "time zone: Europe/London", "tzcode source: system (glibc)", "", "attached base packages:", "[1] stats     graphics  grDevices utils     datasets  methods   base     ", "", "other attached packages:", "[1] saemix_3.5 npde_3.5  ", "", "loaded via a namespace (and not attached):", " [1] RColorBrewer_1.1-3 R6_2.6.1           tidyselect_1.2.1   farver_2.1.2      ", " [5] magrittr_2.0.4     gtable_0.3.6       mclust_6.1.2       glue_1.8.0        ", " [9] gridExtra_2.3      tibble_3.3.1       pkgconfig_2.0.3    generics_0.1.4    ", "[13] dplyr_1.2.0        lifecycle_1.0.5    ggplot2_4.0.2      cli_3.6.5         ", "[17] S7_0.2.1           scales_1.4.0       grid_4.4.3         vctrs_0.7.1       ", "[21] compiler_4.4.3     pillar_1.11.1      deSolve_1.42       rlang_1.1.7       ", "[25] jsonlite_2.0.0     MASS_7.3-65       "]
+  }
+}

@@ -186,3 +186,36 @@ that narrower idea. The only justified continuation is one bounded
 branches, with a strict post-SAEM ODE budget and independent candidate-bank
 validation. Failure with adequately mixed banks stops the single-anchor
 proposal; success would justify, but not itself complete, a 115-patient test.
+
+## System A: final pure-SAEM fixed-psi falsification
+
+The final test is complete and is a **no-go**. Source commit `28920f2` passed
+the complete test suite in job `122174`. Pure-SAEM reference arrays `122175`
+(seed 8) and `122176` (seed 29) completed all 12 patients. Both ODE-free pilot
+jobs then failed the frozen Stage-1 gate: `122178` for seed 8 and `122177` for
+seed 29 exited 3 after publishing diagnostics. Candidate arrays `122179` and
+`122180` never ran and were cancelled, as required by the stop rule.
+
+All four meaningful population endpoints failed at both anchors. Raw
+importance overlap itself was adequate: minimum relative weight ESS ranged
+from 0.271 to 0.812 for seed 8 and 0.317 to 0.765 for seed 29, all above 0.20.
+The common failure was the cost of obtaining effective conditional draws.
+Across endpoint-relevant quantities, minimum pooled bulk ESS was 7.29--23.30
+for seed 8 and 8.79--18.29 for seed 29, versus the required 400; maximum split
+R-hat was 1.175 and 1.143, versus 1.01. Projected 115-patient treatment-message
+MCSE was 0.896--0.938 and 0.960--1.009, versus the 0.50 limit. Split-message,
+replication, and variance-concentration failures occurred as well.
+
+The two branches used 72,096 exact prediction calls in total. Their mean
+sampling acceptances were 0.419 and 0.427, but minimum single-chain coordinate
+or squared-coordinate ESS was only 4.80 and 3.87. This is direct evidence that
+acceptable MH acceptance did not yield the effective banks assumed by the
+proposal at a SAEM-like budget.
+
+Decision: close the single-anchor System A SAEM-message branch. Do not run
+Stage 2, 115 patients, more transport, a repaired defensive mixture, flows, or
+post-hoc smaller endpoints. The importance identity remains correct and local
+overlap looked reasonable, but cheap bank construction—the operational claim
+that could have made the method useful or novel—failed under both corrected
+SAEM anchors. See `FINAL_PURE_SAEM_RESULT.md` and the committed compact CSV
+evidence for the full gate breakdown.

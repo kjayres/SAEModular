@@ -15,8 +15,10 @@ but the raw patient-state banks and fitted-object RDS files are not published.
 
 ## Current verdict
 
-Do not scale to a 115-patient modular posterior. The status is amber for one
-last bounded pilot and no-go for the defensive-mixture implementation.
+Do not scale to a 115-patient modular posterior. The last bounded pilot is now
+complete and failed at both corrected SAEM branches. The status is no-go for
+both the defensive-mixture implementation and the short-refresh pure-SAEM
+single-anchor proposal.
 
 The raw identity
 
@@ -94,9 +96,9 @@ changes from a pure SAEM-conditioned bank. The exact CSV evidence is under:
 - `outputs/system_a_message_assess_components_20260903a/`
 - the `summary.csv` and `manifest.csv` files in the two bank directories.
 
-## Proposed final fork
+## Final fork (completed)
 
-If work continues, the next experiment should be the last single-anchor gate:
+The final single-anchor gate used the following predeclared design:
 
 1. Treat both corrected SAEM endpoints as predeclared stress branches; do not
    choose the more convenient one.
@@ -109,10 +111,17 @@ If work continues, the next experiment should be the last single-anchor gate:
 6. Require patientwise MCMC diagnostics, importance-weight ESS/D2, independent
    candidate-bank/bridge agreement, and total cost accounting.
 
-Passing at both branches would justify a 115-patient test of the operational
-SAEM-cost claim. Failure with adequate chains should stop the single-SAEM-anchor
-proposal. If the aim is a new message identity rather than a faster anchoring
-schedule, this project should stop now because that identity is not new.
+Jobs `122175` and `122176` completed the two pure-SAEM 12-patient banks, but
+both ODE-free Stage-1 jobs (`122178`, `122177`) failed. Every endpoint failed.
+Raw relative weight ESS remained above 0.20, but relevant pooled bulk ESS was
+only 7.29--23.30 and 8.79--18.29, maximum split R-hat was 1.175 and 1.143, and
+projected 115-patient treatment-message MCSE was approximately 0.90--1.01.
+The candidate and bridge stage was therefore not run.
+
+This closes the proposed fork under its own stop rule. The limiting issue is
+not the algebraic identity or immediate local overlap; it is obtaining
+reliable conditional patient draws at the claimed short post-SAEM cost. See
+`FINAL_PURE_SAEM_RESULT.md` for the complete job and endpoint tables.
 
 See `RESULTS.md` for the complete chronological interpretation and the source
 files/tests for the exact estimators and failure semantics.

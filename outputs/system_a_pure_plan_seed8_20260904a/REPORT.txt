@@ -1,0 +1,54 @@
+System A final pure-SAEM fixed-psi pilot
+
+The reference is exactly g_SAEM; no prior-centred mixture is used.
+Chains 01-02 alone decide this Stage-1 pilot gate. Chains 03-04 remain
+held out for assessment if every predeclared endpoint passes.
+Treatment endpoints move beta_nelf by one anchor omega_eta_pi SD.
+Scale endpoints multiply omega_lambda by 1/1.25 or 1.25.
+The diagnostic_fallback field is retained only for worker-schema
+compatibility: TRUE marks a failed endpoint; no fallback is run.
+The projected 115-patient MCSE is an extrapolation from the fixed
+12-patient panel, not a random-sample standard error or proof for 115.
+
+Pilot passed: FALSE
+
+        endpoint_id minimum_relative_weight_ess maximum_normalized_weight
+    treatment_minus                   0.3499445               0.028344941
+     treatment_plus                   0.2714081               0.030910438
+ lambda_scale_minus                   0.8118776               0.003665467
+  lambda_scale_plus                   0.8087100               0.015789719
+ maximum_d2 maximum_split_log_ratio_difference cohort_chain_range
+  1.0499806                          0.4818708          0.2258787
+  1.3041315                          0.9213458          0.5974013
+  0.2084057                          0.3592090          0.5832908
+  0.2123149                          0.2437490          0.5994515
+ maximum_relevant_split_rhat minimum_relevant_mcmc_ess
+                    1.065401                  23.29733
+                    1.093496                  23.29733
+                    1.175103                   7.29479
+                    1.175103                   7.29479
+ minimum_relevant_tail_ess maximum_forward_batch_mcse_ratio
+                  22.37774                         1.507523
+                  22.37774                         1.240678
+                  15.33366                         1.466048
+                  15.33366                         1.384098
+ projected_115_forward_log_mcse maximum_forward_projected_variance_share
+                      0.8963689                                0.3567275
+                      0.9375999                                0.4111899
+                      0.3398908                                0.2918871
+                      0.2815390                                0.2324521
+ maximum_projected_variance_share_limit invariant_control_identity_passed
+                                   0.50                              TRUE
+                                   0.50                              TRUE
+                                   0.25                              TRUE
+                                   0.25                              TRUE
+ forward_worst_observed_patient_envelope forward_delta_log_bias_proxy
+                               1.9408859                   0.40173864
+                               2.1796343                   0.43954675
+                               0.6227243                   0.05776288
+                               0.4712209                   0.03963210
+ maximum_reference_prediction_calls reference_cost_passed passed
+                               3004                  TRUE  FALSE
+                               3004                  TRUE  FALSE
+                               3004                  TRUE  FALSE
+                               3004                  TRUE  FALSE

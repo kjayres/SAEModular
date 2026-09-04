@@ -1,0 +1,5 @@
+"endpoint_id","stage","kind","axis","parameter","sign","step","pilot_gate_passed","diagnostic_fallback"
+"treatment_minus","final_pure_saem_falsification","population_shift","treatment_effect","beta_nelf",-1,0.488760733785834,FALSE,TRUE
+"treatment_plus","final_pure_saem_falsification","population_shift","treatment_effect","beta_nelf",1,0.488760733785834,FALSE,TRUE
+"lambda_scale_minus","final_pure_saem_falsification","population_shift","lambda_population_scale","log_omega_lambda",-1,0.22314355131421,FALSE,TRUE
+"lambda_scale_plus","final_pure_saem_falsification","population_shift","lambda_population_scale","log_omega_lambda",1,0.22314355131421,FALSE,TRUE

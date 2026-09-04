@@ -10,6 +10,10 @@ population distribution:
 h_i(x) = g_SAEM,i(x).
 ```
 
+That final pilot has now failed at both corrected SAEM anchors under its frozen
+short-refresh budget. Candidate/bridge jobs were stopped before running and no
+115-patient experiment is licensed. See `FINAL_PURE_SAEM_RESULT.md`.
+
 With the patient likelihood unchanged and all shared parameters fixed, patient
 `i` contributes the raw-bank message
 
