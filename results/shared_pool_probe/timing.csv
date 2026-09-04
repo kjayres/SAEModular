@@ -1,0 +1,5 @@
+"snapshot","grid","original_seconds","common_seconds","elapsed_speedup","valid_integration_speedup","valid_common_integrations","original_integrations","common_integrations"
+"comparator_chain01_retained0750","panel12",15.523,2.16699999999996,7.16335948315657,7.16243654822348,139,1251,139
+"comparator_chain01_retained0750","grid115",11.521,0.433000000000007,26.6073903002305,26.6073903002305,8,880,8
+"comparator_chain03_retained0750","panel12",14.987,2.133,7.02625410220349,7.02625410220349,140,1260,140
+"comparator_chain03_retained0750","grid115",11.265,0.499999999999986,22.5300000000006,22.5300000000006,8,880,8

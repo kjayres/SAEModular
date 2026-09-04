@@ -12,6 +12,11 @@ candidates are useful to multiple patients and whether a common-trajectory
 interface is accurate and cheaper. No full sampler, SAEM rerun, learned density
 or neural surrogate is implemented. The sealed target remains unchanged.
 
+**Result:** promising trajectory reuse, but a narrowly failed numerical gate;
+no automatic progression to retained chains. Read the
+[result and interpretation](SHARED_POOL_RESULT.md) and
+[compact diagnostic CSVs](results/shared_pool_probe).
+
 Code is deliberately limited to:
 
 - `R/system_a_adapter.R`: pinned original target and provenance checks;
