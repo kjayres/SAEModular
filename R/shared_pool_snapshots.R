@@ -115,7 +115,7 @@ sab_shared_pool_snapshots <- function(workspace_root, adapter) {
           stop("Comparator CSV row width changed.", call. = FALSE)
         }
         if (count == row) {
-          result <- setNames(as.numeric(fields[match(selected, header)]),
+          result <- setNames(suppressWarnings(as.numeric(fields[match(selected, header)])),
                              selected)
         }
       }

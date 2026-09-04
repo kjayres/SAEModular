@@ -20,5 +20,10 @@ RSCRIPT_BIN="$WORKSPACE_ROOT/software/miniforge3/envs/model_fusion_r/bin/Rscript
 export SAB_SYSTEM_A_INTEGRATION=true
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 "$RSCRIPT_BIN" --vanilla -e 'invisible(lapply(c(list.files("R", "[.]R$", full.names=TRUE), list.files("experiments", "[.]R$", full.names=TRUE)), function(p) parse(file=p))); testthat::test_dir("tests/testthat", reporter="summary", stop_on_failure=TRUE)'
+if [[ -n "${SAB_REPLAY_SOURCE:-}" ]]; then
+  exec "$RSCRIPT_BIN" --vanilla experiments/system_a_shared_pool_probe.R \
+    --replay-saved "$SAB_REPLAY_SOURCE" \
+    "$SAB_PROJECT_ROOT/outputs/shared_pool_probe_${SLURM_JOB_ID}"
+fi
 exec "$RSCRIPT_BIN" --vanilla experiments/system_a_shared_pool_probe.R \
   "$SAB_PROJECT_ROOT/outputs/shared_pool_probe_${SLURM_JOB_ID}"

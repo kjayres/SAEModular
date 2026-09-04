@@ -20,6 +20,31 @@
   invisible(x)
 }
 
+# Aggregate stored timings with explicit indexing: subset() would shadow a loop
+# variable named grid with the data column and silently pool different grids.
+sab_shared_pool_timings <- function(ledger) {
+  groups <- unique(ledger[, c("snapshot", "grid"), drop = FALSE])
+  do.call(rbind, lapply(seq_len(nrow(groups)), function(i) {
+    selected <- ledger$snapshot == groups$snapshot[[i]] & ledger$grid == groups$grid[[i]]
+    original <- ledger[selected & ledger$method == "original", , drop = FALSE]
+    common <- ledger[selected & ledger$method == "common", , drop = FALSE]
+    if (!nrow(original) || !identical(original$vector_id, common$vector_id)) {
+      stop("Timing methods must contain identical paired vector IDs.")
+    }
+    valid <- common$ode_integrations > 0 & common$ode_failures == 0 &
+      original$ode_integrations > 0 & original$ode_failures == 0
+    data.frame(snapshot = groups$snapshot[[i]], grid = groups$grid[[i]],
+      original_seconds = sum(original$elapsed_seconds),
+      common_seconds = sum(common$elapsed_seconds),
+      elapsed_speedup = sum(original$elapsed_seconds)/sum(common$elapsed_seconds),
+      valid_integration_speedup = sum(original$elapsed_seconds[valid])/
+        sum(common$elapsed_seconds[valid]),
+      valid_common_integrations = sum(valid),
+      original_integrations = sum(original$ode_integrations),
+      common_integrations = sum(common$ode_integrations))
+  }))
+}
+
 #' Paired reserve proposal diagnostics for a fixed common q
 #'
 #' Rows are patients; columns are reserve draws sampled directly from q. Every

@@ -2,10 +2,16 @@
 # Bounded oracle feasibility only. Run through the associated Slurm launcher.
 options(warn = 1)
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 1L) stop("Usage: system_a_shared_pool_probe.R <new-output-dir>")
+if (!(length(args) == 1L || (length(args) == 3L && args[[1L]] == "--replay-saved"))) {
+  stop("Usage: system_a_shared_pool_probe.R [--replay-saved <completed-source-dir>] <new-output-dir>")
+}
+saved <- if (length(args) == 3L) normalizePath(args[[2L]], mustWork = TRUE) else NULL
+if (!is.null(saved) && !file.exists(file.path(saved, "COMPLETED"))) {
+  stop("Saved replay requires a completed, immutable source run.")
+}
 project <- normalizePath(Sys.getenv("SAB_PROJECT_ROOT"), mustWork = TRUE)
 workspace <- normalizePath(file.path(project, "..", ".."), mustWork = TRUE)
-output <- args[[1L]]
+output <- tail(args, 1L)
 if (file.exists(output) || !dir.create(output, recursive = TRUE)) {
   stop("Refusing existing or uncreatable output directory: ", output)
 }
@@ -38,6 +44,11 @@ reserve <- t(vapply(seq_len(128L), function(j) {
   component$mean + component$sd * rnorm(8L)
 }, numeric(8L)))
 dimnames(reserve) <- list(sprintf("reserve_%03d", 1:128), full$coordinate_names$local)
+if (!is.null(saved)) {
+  previous <- readRDS(file.path(saved, "design.rds"))
+  stopifnot(identical(previous$snapshots, snapshots), identical(previous$reserve, reserve),
+            identical(previous$components, components))
+}
 source_paths <- c(modules, file.path(project, "experiments", "system_a_shared_pool_probe.R"),
                   file.path(project, "SHARED_POOL_CONTRACT.md"))
 write.csv(data.frame(path = source_paths, sha256 = vapply(
@@ -46,7 +57,10 @@ saveRDS(list(snapshots = snapshots, reserve = reserve, components = components,
              reference_target = full$target_fingerprint,
              experimental_targets = lapply(probes, function(p) p[c(
                "target_fingerprint", "positive_times", "union_times", "controls")]),
-             contract = "SHARED_POOL_CONTRACT.md", seed = 20260904),
+             contract = "SHARED_POOL_CONTRACT.md", seed = 20260904,
+             replay_source = saved,
+             replay_manifest_sha256 = if (is.null(saved)) NULL else
+               .sab_system_a_sha256_file(file.path(saved, "manifest.csv"))),
         file.path(output, "design.rds"))
 write.csv(do.call(rbind, lapply(snapshots, function(s) data.frame(
   snapshot = s$id, parameter = c(names(s$eta), names(s$psi)),
@@ -88,12 +102,21 @@ for (k in seq_along(snapshots)) {
   donor <- snapshot$x[ids, , drop = FALSE]
   rownames(donor) <- paste0("patient_", ids)
   vectors <- rbind(reserve, donor)
-  paired <- evaluate_vectors(probes$panel12, vectors, snapshot, "panel12")
-  selected <- c(1:4, 128L + match(c("3", "20", "74", "122"), ids))
-  large <- evaluate_vectors(probes$grid115, vectors[selected, , drop = FALSE],
-                            snapshot, "grid115")
-  saveRDS(list(panel = paired, grid115 = large),
-          file.path(output, paste0(snapshot$id, "_paired.rds")))
+  if (is.null(saved)) {
+    paired <- evaluate_vectors(probes$panel12, vectors, snapshot, "panel12")
+    selected <- c(1:4, 128L + match(c("3", "20", "74", "122"), ids))
+    large <- evaluate_vectors(probes$grid115, vectors[selected, , drop = FALSE],
+                              snapshot, "grid115")
+    saveRDS(list(panel = paired, grid115 = large),
+            file.path(output, paste0(snapshot$id, "_paired.rds")))
+  } else {
+    path <- file.path(saved, paste0(snapshot$id, "_paired.rds"))
+    hashes <- read.csv(file.path(saved, "manifest.csv"))
+    stopifnot(identical(.sab_system_a_sha256_file(path),
+                        hashes$sha256[hashes$file == basename(path)]))
+    stored <- readRDS(path)
+    paired <- stored$panel; large <- stored$grid115
+  }
   # Current likelihoods are the diagonal of the paired current-patient block.
   current_columns <- 128L + seq_along(ids)
   current_ll <- paired$original[cbind(seq_along(ids), current_columns)]
@@ -127,8 +150,11 @@ for (k in seq_along(snapshots)) {
   patient <- direct$patient; patient$patient_id <- ids; patient$snapshot <- snapshot$id
   patient$treat_nelf <- unname(panel$treatment)
   patient$n_obs <- panel$patient_manifest$n_obs
+  patient$requires_ode <- lengths(probes$panel12$positive_times) > 0
   reserve_summary <- direct$reserve; reserve_summary$snapshot <- snapshot$id
   reserve_summary$reserve_id <- rownames(reserve)
+  reserve_summary$useful_ode_patients <- colSums(
+    direct$acceptance[patient$requires_ode, , drop = FALSE] >= .1)
   moves <- expand.grid(patient_id = ids, vector_id = rownames(vectors), stringsAsFactors = FALSE)
   moves$snapshot <- snapshot$id
   moves$source <- rep(c(rep("direct_q", 128), rep("occupied_patient", 12)), each = 12)
@@ -138,25 +164,11 @@ for (k in seq_along(snapshots)) {
   moves$log_f_over_q <- as.numeric(result$log_w_reserve)
   moves$self_comparison <- moves$vector_id == paste0("patient_", moves$patient_id)
   combined <- rbind(paired$comparison, large$comparison)
+  # Post-screen interpretation only; these fields do not alter frozen gates.
+  key <- function(d) paste(d$snapshot, d$patient_id, d$vector_id, sep = "/")
+  combined$paired_panel_acceptance <- moves$acceptance[match(key(combined), key(moves))]
   ledger <- rbind(paired$ledger, large$ledger)
-  timing <- do.call(rbind, lapply(c("panel12", "grid115"), function(grid) {
-    original <- subset(ledger, ledger$grid == grid & method == "original")
-    common <- subset(ledger, ledger$grid == grid & method == "common")
-    stopifnot(identical(original$vector_id, common$vector_id))
-    # Integration count >0 and absence of failures distinguishes actual valid
-    # integration cases from cheap equilibrium rejections.
-    valid <- common$ode_integrations > 0 & common$ode_failures == 0 &
-      original$ode_integrations > 0 & original$ode_failures == 0
-    data.frame(snapshot = snapshot$id, grid = grid,
-      original_seconds = sum(original$elapsed_seconds),
-      common_seconds = sum(common$elapsed_seconds),
-      elapsed_speedup = sum(original$elapsed_seconds)/sum(common$elapsed_seconds),
-      valid_integration_speedup = sum(original$elapsed_seconds[valid])/
-        sum(common$elapsed_seconds[valid]),
-      valid_common_integrations = sum(valid),
-      original_integrations = sum(original$ode_integrations),
-      common_integrations = sum(common$ode_integrations))
-  }))
+  timing <- sab_shared_pool_timings(ledger)
   sharing <- mean(reserve_summary$useful_patients >= 2L)
   interval <- wilson(sum(reserve_summary$useful_patients >= 2L), 128L)
   error <- maximum_finite(combined$loglik_difference)
@@ -166,6 +178,8 @@ for (k in seq_along(snapshots)) {
     direct_mean_acceptance = mean(direct$acceptance),
     fraction_shared_reserves = sharing, sharing_lower95 = interval[[1L]],
     sharing_upper95 = interval[[2L]],
+    fraction_reserves_useful_to_multiple_ode_patients =
+      mean(reserve_summary$useful_ode_patients >= 2L),
     patients_mean_acceptance_ge_002 = sum(patient$mean_reserve_mh_acceptance >= .02),
     peer_mean_acceptance_excluding_self = mean(peer$acceptance),
     max_abs_loglik_difference = error, max_abs_reserve_acceptance_difference = alpha_error,
@@ -197,6 +211,8 @@ report <- c(
   paste("Prediction-interface calls:", sum(ledger$prediction_calls)),
   paste("Actual integration attempts:", sum(ledger$ode_integrations)),
   paste("Integration failures:", sum(ledger$ode_failures)),
+  paste("New scientific prediction calls in this execution:",
+        if (is.null(saved)) sum(ledger$prediction_calls) else 0L),
   paste("Elapsed wall seconds (including loading):", proc.time()[["elapsed"]] - started),
   "All direct-q draws including failed solves remain counted. No SAEM rerun.",
   "Common-grid target is experimental; this screen is not a full numerical certification.",

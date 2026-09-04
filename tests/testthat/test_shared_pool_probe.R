@@ -1,5 +1,19 @@
 source(file.path(core_root, "R", "shared_pool_probe.R"), local = FALSE)
 
+testthat::test_that("timings never pool distinct grids or snapshots", {
+  ledger <- data.frame(snapshot = rep(c("a", "a", "b"), each = 2),
+    grid = rep(c("panel12", "grid115", "panel12"), each = 2),
+    method = rep(c("original", "common"), 3), vector_id = "v1",
+    elapsed_seconds = c(8, 2, 30, 3, 21, 3),
+    ode_integrations = c(9, 1, 110, 1, 9, 1), ode_failures = 0)
+  timing <- sab_shared_pool_timings(ledger)
+  testthat::expect_equal(timing$elapsed_speedup, c(4, 10, 7))
+  testthat::expect_equal(timing$valid_common_integrations, c(1, 1, 1))
+  testthat::expect_equal(timing$original_integrations, c(9, 110, 9))
+  ledger$vector_id[[2L]] <- "wrong"
+  testthat::expect_error(sab_shared_pool_timings(ledger), "identical paired")
+})
+
 testthat::test_that("reserve MH and Gibbs use the common q at both endpoints", {
   # Non-Gaussian/discrete positive densities are enough to test the algebra.
   result <- sab_shared_pool_probe(
