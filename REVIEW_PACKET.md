@@ -9,7 +9,9 @@ This packet is intended for an independent review of one decision:
 > only a short post-SAEM MCMC refresh is needed for useful fixed-psi Bayesian
 > population uncertainty?
 
-It is **not** evidence that the proposed method already works.
+It is **not** evidence that the proposed method already works, nor is it a
+self-contained reproduction archive: the exact aggregate evidence is included,
+but the raw patient-state banks and fitted-object RDS files are not published.
 
 ## Current verdict
 
@@ -51,6 +53,10 @@ large repeated ODE-failure ledgers are intentionally not published.
 
 ## Defensive-reference calibration
 
+Crucially, this calibration used the **old pre-correction production SAEM
+anchor**. It did not test either of the two corrected seed-8 and seed-29 SAEM
+branches reported above.
+
 | Job | Role | State |
 |---|---|---|
 | `122130` | 12 defensive-reference patient banks | all 12 completed, exit 0 |
@@ -74,6 +80,12 @@ It is unusable as one patient MCMC bank for these data. Important diagnostics:
 - prior-component pooled bridge nonconvergence for patients 3, 6, 55, and 74;
 - prior-component cohort forward-chain range 1774.47;
 - SAEM-component cohort forward/reverse log ratios 1.757 and 8.318.
+
+Bank construction used 288,144 exact prediction calls and 213,709 successful
+ODE integrations in total. The pure-SAEM component chains had much better mean
+acceptance (42.175%) than the defensive reference, but their minimum coordinate
+ESS was still only 6.44; that is evidence of unresolved local mixing, not a
+successful pure-SAEM message test.
 
 This is a no-go for the defensive mixture, not a test of nearby population
 changes from a pure SAEM-conditioned bank. The exact CSV evidence is under:
