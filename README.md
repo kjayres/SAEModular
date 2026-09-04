@@ -3,11 +3,11 @@
 This research prototype tests one idea: use an all-115-patient SAEM fit as a
 hierarchy-aware anchor, then turn independent exact-target patient-conditional
 MCMC banks into reusable messages for fast modular population inference. The
-first reference broadens the fitted region toward one explicitly declared
-prior-centred region; it does not claim to cover the prior's full support:
+current and final System A pilot samples directly under the fitted SAEM
+population distribution:
 
 ```text
-h_i(x) = 0.5 g_SAEM,i(x) + 0.5 g_priorcentral,i(x).
+h_i(x) = g_SAEM,i(x).
 ```
 
 With the patient likelihood unchanged and all shared parameters fixed, patient
@@ -52,20 +52,20 @@ catastrophically rare weights for a heavier-tailed candidate. Empirical ESS,
 split checks, and D2 can expose observed failure but cannot rule out unseen tail
 failure.
 
-The first System A implementation is narrower than this generic identity. Its
-two reference components are eight-dimensional diagonal Gaussians whose means
-include the observed Nelfinavir indicator, but `h_i` itself is a non-Gaussian
-mixture. An independence proposal from `h_i` can cross between its separated
-components; because the proposal and reference cancel, its exact MH correction
-is only the sealed likelihood ratio. It does **not** require
-candidate message models `g_(i,M)` to be diagonal Gaussian: those models enter
-later only through their normalized log-density evaluations. An arbitrary
-non-Gaussian anchor would require a different exact-target conditional MCMC
-kernel or direct reference sampler, but not a different message estimator.
-Likewise, bidirectional bridge
-validation for an arbitrary candidate requires a valid candidate-target bank
-sampler; the current bank builder covers only System A's diagonal-Gaussian
-population family.
+The final System A implementation is narrower than this generic identity. Its
+pure SAEM reference is an eight-dimensional diagonal Gaussian whose mean
+includes the observed Nelfinavir indicator. A pCN proposal preserves that
+reference, so its exact MH correction is only the sealed likelihood ratio. It
+does **not** require later candidate message models `g_(i,M)` to be diagonal
+Gaussian: those models enter through normalized log-density evaluations. An
+arbitrary non-Gaussian anchor would require a different exact-target
+conditional sampler, and bidirectional validation requires a valid sampler at
+the candidate target.
+
+The earlier equal mixture
+`0.5*g_SAEM + 0.5*g_priorcentral` was a deliberately broad defensive anchor.
+It mixed poorly and failed its predeclared calibration, so that branch is
+stopped; it remains in the repository only as negative evidence.
 
 The repository now exposes the distribution-free log-density-ratio estimator,
 but it does not yet contain a catalogue of candidate `g_(i,M)` models or the
@@ -73,21 +73,22 @@ outer sampler over `(M, eta)`. The first message experiment must supply those
 normalized candidate log densities explicitly and keep their covariate data
 and model priors under provenance control.
 
-The first falsification sequence is:
+The final bounded falsification sequence is:
 
-1. fit the genuine all-patient SAEM anchor;
-2. freeze all four shared parameters at that anchor;
-3. build independent exact-target VODE-BDF conditional MCMC banks for the 12
-   audited patients under the equal defensive reference;
-4. calculate raw `g_SAEM / h` and `g_priorcentral / h` messages without ODE
-   calls, and audit `0.5*g_SAEM/h + 0.5*g_priorcentral/h = 1` pointwise;
-5. validate both separated components using separately simulated candidate
-   banks and candidate-augmented bidirectional bridge estimates (the bridge
-   and raw estimates share the held-out reference draws, so their agreement is
-   not an independent replicate check);
-6. only after that calibration passes, test treatment-effect and non-boundary
-   scale directions;
-7. proceed to all 115 patients only if overlap, replication, and accuracy pass.
+1. use both corrected all-patient SAEM endpoints and freeze each branch's four
+   shared parameters;
+2. build four independent pure-SAEM exact-target pCN chains for each of the 12
+   audited patients under a fixed short ODE budget;
+3. use chains 01-02 alone to test four meaningful population changes: a
+   one-population-SD treatment shift in both directions and a 0.8/1.25 change
+   in the lambda population SD;
+4. stop before candidate ODE work unless every endpoint passes at both SAEM
+   branches;
+5. if both pass, use held-out reference chains, separately simulated candidate
+   banks, and disjoint raw/bridge chain roles to compare forward, reverse, and
+   bridge messages;
+6. license a 115-patient fixed-shared-parameter test only if all final gates
+   pass. The frozen contract is in `FINAL_PURE_SAEM_CONTRACT.md`.
 
 The frozen-bank posterior is a controlled Monte Carlo approximation, not an
 exact retained MCMC target. Independent banks, weight diagnostics, and bridge
@@ -114,14 +115,19 @@ R/system_a_patient_bank.R      System A-specific diagonal-prior pCN banks
 R/patient_messages.R           distribution-free raw-message/bridge estimators
 R/system_a_saem_anchor.R       strict SAEM-to-System-A anchor conversion
 R/system_a_message_validation.R defensive-reference validation
+R/system_a_pure_message_validation.R final pure-SAEM validation and gates
 experiments/toy_decay.R        nonlinear toy validation
 experiments/system_a_12.R      12-patient oracle endpoint pilot
 experiments/system_a_anchor_bank_patient.R  one-patient exact-target MCMC worker
+experiments/system_a_pure_message_validation.R final plan/assessment CLI
 config/system_a_saem_sources.sha256  pinned external SAEM inputs
 slurm/system_a_saem_anchor.sbatch    all-115 anchor-only SAEM fit
 slurm/system_a_anchor_banks.sbatch   12-patient bank array
 slurm/system_a_candidate_banks.sbatch component-target bank array
 slurm/system_a_message_validation.sbatch ODE-free plan/assessment
+slurm/system_a_pure_anchor_banks.sbatch final pure-SAEM reference array
+slurm/system_a_pure_candidate_banks.sbatch final validation-target array
+slurm/system_a_pure_message_validation.sbatch final ODE-free plan/assessment
 slurm/test_core.sbatch              compute-node source/synthetic tests
 slurm/*.sbatch                 Oxford Statistics HPC launchers
 tests/testthat/                inverse, Jacobian, cache, and target checks
@@ -137,7 +143,8 @@ sbatch slurm/system_a_saem_anchor.sbatch
 sbatch slurm/test_core.sbatch
 ```
 
-Generated logs and RDS/CSV outputs are deliberately excluded from Git.
+Generated logs and large RDS banks are excluded from Git. Compact result
+summaries and review evidence may be committed when needed for audit.
 
 ## System A prerequisites
 

@@ -33,4 +33,4 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
 exec "$RSCRIPT_BIN" --vanilla -e \
-  'testthat::test_dir("tests/testthat", reporter = "summary", stop_on_failure = TRUE)'
+  'invisible(lapply(list.files("experiments", pattern = "[.]R$", full.names = TRUE), function(path) parse(file = path))); testthat::test_dir("tests/testthat", reporter = "summary", stop_on_failure = TRUE)'

@@ -2,16 +2,18 @@
 
 # Build independent exact-target conditional MCMC banks for one predeclared
 # System A patient.  With three command-line arguments the target fixes psi at
-# the canonical SAEM anchor and uses the declared defensive population
-# reference.  An optional endpoint-plan argument instead targets one of the
-# population endpoints selected by the separate ODE-free pilot.  Slurm
+# the canonical SAEM anchor and uses the legacy defensive population
+# reference.  The explicit fourth argument `pure_saem_reference` instead uses
+# the pure SAEM population law and its pCN kernel.  Any other fourth argument
+# is interpreted as an endpoint plan and targets one of its independently
+# validated population endpoints.  Slurm
 # assigns patient/endpoint pairs across array tasks; chains for one pair run
 # sequentially inside its one-CPU task.
 # This worker does not evaluate messages, choose population endpoints, fit a
-# transport map, or use comparator output.  The anchor-bank target uses the
-# fixed defensive reference h_i = 0.5 g_SAEM,i + 0.5 g_priorcentral,i and an
-# independence proposal from h_i.  Candidate endpoint banks retain the
-# diagonal-Gaussian pCN kernel.  These System A samplers place no family
+# transport map, or use comparator output.  A pure SAEM reference and every
+# candidate endpoint use the diagonal-Gaussian pCN kernel.  The legacy
+# defensive mode uses h_i = 0.5 g_SAEM,i + 0.5 g_priorcentral,i with an
+# independence proposal from h_i.  These System A samplers place no family
 # restriction on population densities evaluated by the generic message code.
 
 sab_worker_stop <- function(...) {
@@ -466,7 +468,7 @@ arguments <- commandArgs(trailingOnly = TRUE)
 if (!length(arguments) %in% c(3L, 4L)) {
   sab_worker_stop(
     "Usage: system_a_anchor_bank_patient.R <anchor.rds> <output-root> ",
-    "<zero-based-array-index> [endpoint-plan.rds]."
+    "<zero-based-array-index> [pure_saem_reference|endpoint-plan.rds]."
   )
 }
 command_line <- commandArgs(trailingOnly = FALSE)
@@ -486,7 +488,9 @@ project_root <- normalizePath(
 )
 anchor_path <- normalizePath(arguments[[1L]], mustWork = TRUE)
 output_root <- normalizePath(arguments[[2L]], mustWork = TRUE)
-endpoint_plan_path <- if (length(arguments) == 4L) {
+pure_reference_mode <- length(arguments) == 4L &&
+  identical(arguments[[4L]], "pure_saem_reference")
+endpoint_plan_path <- if (length(arguments) == 4L && !pure_reference_mode) {
   normalizePath(arguments[[4L]], mustWork = TRUE)
 } else {
   NULL
@@ -494,15 +498,30 @@ endpoint_plan_path <- if (length(arguments) == 4L) {
 endpoint_plan <- if (is.null(endpoint_plan_path)) NULL else
   readRDS(endpoint_plan_path)
 candidate_mode <- !is.null(endpoint_plan)
+pure_plan_mode <- candidate_mode && identical(
+  endpoint_plan$schema_version,
+  "sab_system_a_pure_message_endpoint_plan_v1"
+)
+defensive_reference_mode <- !candidate_mode && !pure_reference_mode
 if (candidate_mode) {
+  expected_endpoint_count <- if (identical(
+    endpoint_plan$schema_version,
+    "sab_system_a_message_endpoint_plan_v1"
+  )) {
+    2L
+  } else if (identical(
+    endpoint_plan$schema_version,
+    "sab_system_a_pure_message_endpoint_plan_v1"
+  )) {
+    4L
+  } else {
+    NA_integer_
+  }
   endpoint_shape_ok <-
     is.list(endpoint_plan) &&
-    identical(
-      endpoint_plan$schema_version,
-      "sab_system_a_message_endpoint_plan_v1"
-    ) &&
+    !is.na(expected_endpoint_count) &&
     is.data.frame(endpoint_plan$endpoints) &&
-    nrow(endpoint_plan$endpoints) == 2L &&
+    nrow(endpoint_plan$endpoints) == expected_endpoint_count &&
     identical(
       names(endpoint_plan$endpoints),
       c(
@@ -512,7 +531,7 @@ if (candidate_mode) {
     ) &&
     is.matrix(endpoint_plan$endpoint_eta) &&
     is.numeric(endpoint_plan$endpoint_eta) &&
-    nrow(endpoint_plan$endpoint_eta) == 2L &&
+    nrow(endpoint_plan$endpoint_eta) == expected_endpoint_count &&
     identical(
       rownames(endpoint_plan$endpoint_eta),
       endpoint_plan$endpoints$endpoint_id
@@ -580,10 +599,21 @@ configuration <- list(
     "SAB_BANK_START_OFFSET_SD", 0.1, 3
   )
 )
+configuration$maximum_initial_candidates_per_chain <- 18L
+configuration$exact_prediction_call_cap <- as.double(configuration$chains) *
+  (
+    configuration$warmup +
+      as.double(configuration$draws) * configuration$thin +
+      configuration$maximum_initial_candidates_per_chain
+  )
 
 adapter_path <- file.path(project_root, "R", "system_a_adapter.R")
 bank_path <- file.path(project_root, "R", "system_a_patient_bank.R")
-if (!file.exists(adapter_path) || !file.exists(bank_path)) {
+pure_validation_path <- file.path(
+  project_root, "R", "system_a_pure_message_validation.R"
+)
+if (!file.exists(adapter_path) || !file.exists(bank_path) ||
+    (pure_plan_mode && !file.exists(pure_validation_path))) {
   sab_worker_stop("Required System A modules are absent.")
 }
 input_sha256 <- c(
@@ -593,6 +623,13 @@ input_sha256 <- c(
   "experiments/system_a_anchor_bank_patient.R" =
     sab_worker_sha256(worker_script_path)
 )
+if (pure_plan_mode) {
+  input_sha256 <- c(
+    input_sha256,
+    "R/system_a_pure_message_validation.R" =
+      sab_worker_sha256(pure_validation_path)
+  )
+}
 if (candidate_mode) {
   input_sha256 <- c(
     input_sha256,
@@ -601,6 +638,9 @@ if (candidate_mode) {
 }
 sys.source(adapter_path, envir = globalenv(), keep.source = FALSE)
 sys.source(bank_path, envir = globalenv(), keep.source = FALSE)
+if (pure_plan_mode) {
+  sys.source(pure_validation_path, envir = globalenv(), keep.source = FALSE)
+}
 
 adapter <- sab_load_system_a_adapter(
   workspace_root = workspace_root, patient_ids = patient_id
@@ -610,6 +650,16 @@ if (!identical(adapter$numerical_target, "sealed_deSolve_VODE_BDF")) {
 }
 anchor <- readRDS(anchor_path)
 production_source <- sab_worker_validate_anchor(anchor, adapter, patient_id)
+if (pure_reference_mode || pure_plan_mode) {
+  exact <- anchor$validation$exact_target
+  if (!isTRUE(exact$passed) || !is.data.frame(exact$summary) ||
+      nrow(exact$summary) != 1L || !isTRUE(exact$summary$passed[[1L]])) {
+    sab_worker_stop(
+      "The final pure-SAEM experiment requires all 115 anchor states to pass ",
+      "the sealed exact target."
+    )
+  }
+}
 if (candidate_mode) {
   plan_ok <-
     identical(endpoint_plan$target_fingerprint, adapter$target_fingerprint) &&
@@ -625,6 +675,37 @@ if (candidate_mode) {
     sab_worker_stop(
       "Endpoint plan, canonical anchor, patients, or target coordinates differ."
     )
+  }
+  if (pure_plan_mode) {
+    plan_module_hashes <- endpoint_plan$provenance$module_sha256
+    required_plan_hashes <- c(
+      "system_a_adapter.R" = unname(
+        input_sha256[["R/system_a_adapter.R"]]
+      ),
+      "system_a_pure_message_validation.R" = unname(
+        input_sha256[["R/system_a_pure_message_validation.R"]]
+      )
+    )
+    provenance_ok <- is.character(plan_module_hashes) &&
+      all(names(required_plan_hashes) %in% names(plan_module_hashes)) &&
+      identical(
+        unname(plan_module_hashes[names(required_plan_hashes)]),
+        unname(required_plan_hashes)
+      )
+    if (!isTRUE(provenance_ok)) {
+      sab_worker_stop(
+        "Pure endpoint-plan validation sources changed after planning."
+      )
+    }
+    .sab_pure_validate_plan(
+      endpoint_plan, adapter, anchor, sab_system_a_pure_message_design()
+    )
+    if (!all(endpoint_plan$endpoints$pilot_gate_passed) ||
+        any(endpoint_plan$endpoints$diagnostic_fallback)) {
+      sab_worker_stop(
+        "Pure candidate banks are forbidden because the Stage-1 pilot failed."
+      )
+    }
   }
 }
 source_hash_names <- paste0("saem_source/", names(production_source$sha256))
@@ -664,6 +745,14 @@ if (!isTRUE(adapter$eta_in_domain(eta))) {
 }
 endpoint <- if (candidate_mode) {
   endpoint_plan$endpoints[endpoint_index, , drop = FALSE]
+} else if (pure_reference_mode) {
+  data.frame(
+    endpoint_id = "pure_saem_reference", stage = "reference",
+    kind = "population", axis = "reference",
+    parameter = NA_character_, sign = 0L, step = 0,
+    pilot_gate_passed = TRUE,
+    diagnostic_fallback = FALSE, stringsAsFactors = FALSE
+  )
 } else {
   data.frame(
     endpoint_id = "defensive_reference", stage = "reference",
@@ -693,24 +782,38 @@ names(population_sd) <- local_names
 if (any(!is.finite(population_sd)) || any(population_sd <= 0)) {
   sab_worker_stop("Anchor patient population scales are invalid.")
 }
-priorcentral_eta <- adapter$prior_reference$eta
-if (!is.numeric(priorcentral_eta) ||
-    !identical(names(priorcentral_eta), adapter$coordinate_names$population) ||
-    any(!is.finite(priorcentral_eta)) ||
-    !isTRUE(adapter$eta_in_domain(priorcentral_eta))) {
-  sab_worker_stop("The pinned prior-centred population reference is malformed.")
-}
-priorcentral_mean <- adapter$population_mean(patient_id, priorcentral_eta)
-priorcentral_sd <- exp(priorcentral_eta[scale_names])
-names(priorcentral_sd) <- local_names
-if (!is.numeric(priorcentral_mean) ||
-    !identical(names(priorcentral_mean), local_names) ||
-    any(!is.finite(priorcentral_mean)) ||
-    any(!is.finite(priorcentral_sd)) || any(priorcentral_sd <= 0)) {
-  sab_worker_stop("The prior-centred patient population component is invalid.")
+priorcentral_eta <- priorcentral_mean <- priorcentral_sd <- NULL
+if (defensive_reference_mode) {
+  priorcentral_eta <- adapter$prior_reference$eta
+  if (!is.numeric(priorcentral_eta) ||
+      !identical(names(priorcentral_eta),
+                 adapter$coordinate_names$population) ||
+      any(!is.finite(priorcentral_eta)) ||
+      !isTRUE(adapter$eta_in_domain(priorcentral_eta))) {
+    sab_worker_stop(
+      "The pinned prior-centred population reference is malformed."
+    )
+  }
+  priorcentral_mean <- adapter$population_mean(patient_id, priorcentral_eta)
+  priorcentral_sd <- exp(priorcentral_eta[scale_names])
+  names(priorcentral_sd) <- local_names
+  if (!is.numeric(priorcentral_mean) ||
+      !identical(names(priorcentral_mean), local_names) ||
+      any(!is.finite(priorcentral_mean)) ||
+      any(!is.finite(priorcentral_sd)) || any(priorcentral_sd <= 0)) {
+    sab_worker_stop(
+      "The prior-centred patient population component is invalid."
+    )
+  }
 }
 
-seed_namespace <- if (candidate_mode) 500000L else 0L
+seed_namespace <- if (candidate_mode) {
+  500000L
+} else if (pure_reference_mode) {
+  1000000L
+} else {
+  0L
+}
 chain_seeds <- configuration$base_seed + seed_namespace + 10000L * task_index +
   seq_len(configuration$chains)
 if (any(chain_seeds > .Machine$integer.max)) {
@@ -722,7 +825,7 @@ chains <- setNames(vector("list", configuration$chains),
 start_design <- setNames(vector("list", configuration$chains), names(chains))
 
 for (chain_index in seq_len(configuration$chains)) {
-  candidates <- if (candidate_mode) {
+  candidates <- if (candidate_mode || pure_reference_mode) {
     sab_worker_candidates(
       saem_x = saem_x,
       population_mean = population_mean,
@@ -757,12 +860,12 @@ for (chain_index in seq_len(configuration$chains)) {
     target_acceptance = configuration$target_acceptance,
     adaptation_block = configuration$adaptation_block,
     seed = seed,
-    proposal_mode = if (candidate_mode) {
+    proposal_mode = if (candidate_mode || pure_reference_mode) {
       "pcn"
     } else {
       "defensive_independence"
     },
-    defensive_eta = if (candidate_mode) NULL else priorcentral_eta
+    defensive_eta = if (defensive_reference_mode) priorcentral_eta else NULL
   )
   start_design[[chain_index]] <- list(
     requested = rownames(candidates)[[1L]],
@@ -858,15 +961,30 @@ summary_rows <- do.call(rbind, lapply(seq_along(chains), function(index) {
   )
 }))
 rownames(summary_rows) <- NULL
+if (sum(summary_rows$exact_prediction_calls) >
+      configuration$exact_prediction_call_cap ||
+    sum(summary_rows$exact_ode_integrations) >
+      configuration$exact_prediction_call_cap) {
+  sab_worker_stop(
+    "Patient-target exact-call cap was exceeded: predictions ",
+    sum(summary_rows$exact_prediction_calls), ", cap ",
+    configuration$exact_prediction_call_cap, ", ODE integrations ",
+    sum(summary_rows$exact_ode_integrations), "."
+  )
+}
 
 artifact <- structure(list(
   schema_version = if (candidate_mode) {
     "sab_system_a_endpoint_patient_banks_v1"
+  } else if (pure_reference_mode) {
+    "sab_system_a_pure_reference_patient_banks_v1"
   } else {
     "sab_system_a_reference_patient_banks_v1"
   },
   bank_role = if (candidate_mode) {
     "candidate_endpoint"
+  } else if (pure_reference_mode) {
+    "pure_saem_reference"
   } else {
     "defensive_reference"
   },
@@ -883,14 +1001,20 @@ artifact <- structure(list(
     endpoint = endpoint,
     eta = eta,
     psi = psi,
-    reference = if (candidate_mode) NULL else list(
-      kind = "equal_defensive_mixture",
-      weights = c(saem = 0.5, priorcentral = 0.5),
-      eta_components = list(
-        saem = anchor$eta,
-        priorcentral = priorcentral_eta
+    reference = if (candidate_mode) {
+      NULL
+    } else if (pure_reference_mode) {
+      list(kind = "population", eta = anchor$eta)
+    } else {
+      list(
+        kind = "equal_defensive_mixture",
+        weights = c(saem = 0.5, priorcentral = 0.5),
+        eta_components = list(
+          saem = anchor$eta,
+          priorcentral = priorcentral_eta
+        )
       )
-    ),
+    },
     endpoint_plan = if (candidate_mode) {
       list(path = endpoint_plan_path,
            sha256 = unname(input_sha256[["endpoint_plan"]]))
@@ -942,19 +1066,28 @@ final_input_sha256 <- c(
   "R/system_a_adapter.R" = sab_worker_sha256(adapter_path),
   "R/system_a_patient_bank.R" = sab_worker_sha256(bank_path),
   "experiments/system_a_anchor_bank_patient.R" =
-    sab_worker_sha256(worker_script_path),
+    sab_worker_sha256(worker_script_path)
+)
+if (pure_plan_mode) {
+  final_input_sha256 <- c(
+    final_input_sha256,
+    "R/system_a_pure_message_validation.R" =
+      sab_worker_sha256(pure_validation_path)
+  )
+}
+if (candidate_mode) {
+  final_input_sha256 <- c(
+    final_input_sha256,
+    endpoint_plan = sab_worker_sha256(endpoint_plan_path)
+  )
+}
+final_input_sha256 <- c(
+  final_input_sha256,
   stats::setNames(
     vapply(production_source$paths, sab_worker_sha256, character(1L)),
     source_hash_names
   )
 )
-if (candidate_mode) {
-  final_input_sha256 <- append(
-    final_input_sha256,
-    c(endpoint_plan = sab_worker_sha256(endpoint_plan_path)),
-    after = 4L
-  )
-}
 if (!identical(final_input_sha256, input_sha256)) {
   sab_worker_stop("Anchor or source files changed while the bank task ran.")
 }
@@ -992,7 +1125,8 @@ manifest <- data.frame(
     "diagnostic_fallback",
     "patient_id", "array_task_index", "target_fingerprint",
     "numerical_target", "anchor_path", "anchor_sha256", "chains", "warmup",
-    "draws_per_chain", "thin", "base_seed", "saem_k1", "saem_k2",
+    "draws_per_chain", "thin", "base_seed", "prediction_call_cap",
+    "saem_k1", "saem_k2",
     "saem_audit_status", "saem_start_exact_passed",
     "saem_start_rejection_reason", "rds_sha256", "summary_sha256"
   ),
@@ -1005,6 +1139,7 @@ manifest <- data.frame(
     adapter$target_fingerprint, adapter$numerical_target, anchor_path,
     artifact$anchor$sha256, configuration$chains, configuration$warmup,
     configuration$draws, configuration$thin, configuration$base_seed,
+    configuration$exact_prediction_call_cap,
     production_source$k1, production_source$k2,
     production_source$audit_status,
     saem_start_validation$passed,
