@@ -1,0 +1,3 @@
+"method","chains","retained_prefix","unused_retained_sweeps","charged_cpu_sec","charged_sum_chain_wall_sec","charged_budget_units","charged_ode_integrations"
+"baseline",4,8758,0,4504.0765,9514.9565,399960,398437
+"recycling",4,4736,317,5203.1135,8799.9395,399787,384195

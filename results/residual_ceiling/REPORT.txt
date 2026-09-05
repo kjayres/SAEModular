@@ -1,0 +1,10 @@
+Bank-free full-eight-coordinate local-component rejection screen.
+Prediction calls: 2265
+ODE integrations: 2265
+Components ruled out for 80% collapse: 9 of 9
+CPU seconds: 18.773
+Elapsed seconds: 39.072
+Simultaneous 95% upper confidence bounds; no deterministic likelihood certificate.
+High ceilings are inconclusive. Low ceilings reject only these frozen components.
+Oracle moment construction costs are historical and excluded; no deployable cost claim.
+No sampler, posterior approximation, SAEM, or full-cohort experiment was constructed.

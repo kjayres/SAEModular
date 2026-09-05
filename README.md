@@ -4,15 +4,16 @@ The objective is useful Bayesian population uncertainty and reusable expensive
 forward calculations. Engineering is subordinate to demonstrating computational
 and statistical benefit. Nothing here establishes a general modular Bayes solution.
 
-## Current reduced posterior experiment
+## Reduced posterior experiment: no-go at tested budget
 
-An exact-corrected shared-pool sampler is being tested against the same baseline
-hierarchy on twelve patients, with four chains per method and a fixed total
-evaluation budget. The original sealed likelihood and informative priors define
-both targets; common trajectories only guide proposals. There are no retained
-results yet. The [frozen chain contract](SHARED_POOL_CHAIN_CONTRACT.md) requires
-posterior agreement and a material improvement in population ESS per total CPU
-cost before further work. It includes dynamic shared-parameter uncertainty.
+All eight chains completed in job 122242. Neither arm passed convergence;
+posterior agreement and efficiency gates also failed. The descriptive median
+bulk ESS/CPU ratio was 0.446 and only about 0.99% of recycling assignments changed
+patient states. This does not establish a general impossibility or sampler bias,
+but it does not justify promotion or scaling. See the
+[result](SHARED_CHAIN_RESULT.md), [compact evidence](results/shared_pool_chain)
+and [frozen contract](SHARED_POOL_CHAIN_CONTRACT.md). Both arms retain the original
+sealed likelihood and priors, including dynamic shared-parameter uncertainty.
 
 ## Residual-collapse prerequisite: checked, sampler parked
 
@@ -24,6 +25,14 @@ been constructed. The general residual identity is not falsified. No residual
 sampler or certification framework was built. See the
 [frozen scope](RESIDUAL_BOUND_FEASIBILITY.md) and
 [compact evidence](results/residual_bound_probe).
+
+A separate [local-component rejection screen](RESIDUAL_CEILING_RESULT.md)
+completed as job 122250 using 2,265 exact integrations and no patient MCMC bank.
+All nine compact components failed the 80%-collapse aspiration. The most
+favourable upper confidence ceilings for the three patients were 23%, 38% and
+15%. This fitted local Gaussian route is also parked; the general residual
+identity is not disproved. See the [contract](RESIDUAL_CEILING_CONTRACT.md) and
+[compact evidence](results/residual_ceiling). No research experiment is running.
 
 This repository is the bounded methods testbed. Promote validated components to
 the main modular Bayes work only after the relevant posterior-accuracy and total-
@@ -64,6 +73,7 @@ sbatch --parsable slurm/system_a_shared_pool_probe.sbatch
 sbatch --parsable --export=ALL,SMOKE=1 slurm/system_a_shared_pool_chain.sbatch
 sbatch --parsable slurm/system_a_shared_pool_chain.sbatch
 sbatch --parsable slurm/system_a_residual_bound_probe.sbatch
+sbatch --parsable slurm/system_a_residual_ceiling.sbatch
 ```
 
 The experiment driver also accepts `--replay-saved <completed-source-dir>` before

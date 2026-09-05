@@ -1,0 +1,11 @@
+Reduced 12-patient exact hierarchical comparison; original priors and sealed likelihood.
+Implementation smoke: FALSE
+All global convergence gates: FALSE
+Independent-arm posterior agreement: FALSE
+Efficiency gate: FALSE
+Continue to discuss: FALSE
+Preparation CPU seconds: 14.515
+Driver elapsed seconds: 4864.399
+All costs include warmup and unused retained tails; historical comparator fitting is excluded.
+Nonconvergence means an inconclusive posterior comparison, not a general impossibility result.
+No 115-patient inference, deployable SAEM cost or model-structure reuse is established.
