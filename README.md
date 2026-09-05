@@ -14,6 +14,23 @@ results yet. The [frozen chain contract](SHARED_POOL_CHAIN_CONTRACT.md) requires
 posterior agreement and a material improvement in population ESS per total CPU
 cost before further work. It includes dynamic shared-parameter uncertainty.
 
+## Residual-collapse prerequisite: checked, sampler parked
+
+The [one-patient bound audit](RESIDUAL_BOUND_RESULT.md) used 26 sealed prediction
+calls. The proposed global Gaussian/affine lower-bound construction does not
+apply unchanged to System A. Simple Gaussian-integrable regions repair physical
+equilibrium support only; no useful certified likelihood lower component has
+been constructed. The general residual identity is not falsified. No residual
+sampler or certification framework was built. See the
+[frozen scope](RESIDUAL_BOUND_FEASIBILITY.md) and
+[compact evidence](results/residual_bound_probe).
+
+This repository is the bounded methods testbed. Promote validated components to
+the main modular Bayes work only after the relevant posterior-accuracy and total-
+cost tests; a sampling optimisation is not automatically a modularisation result.
+Retain compact negative evidence and distinguish failed constructions from
+inconclusive tests or general impossibility claims.
+
 ## Completed feasibility screen
 
 Can a continuously refreshed pool reuse trajectories across System A patients?
@@ -46,6 +63,7 @@ sbatch --parsable slurm/test_core.sbatch
 sbatch --parsable slurm/system_a_shared_pool_probe.sbatch
 sbatch --parsable --export=ALL,SMOKE=1 slurm/system_a_shared_pool_chain.sbatch
 sbatch --parsable slurm/system_a_shared_pool_chain.sbatch
+sbatch --parsable slurm/system_a_residual_bound_probe.sbatch
 ```
 
 The experiment driver also accepts `--replay-saved <completed-source-dir>` before

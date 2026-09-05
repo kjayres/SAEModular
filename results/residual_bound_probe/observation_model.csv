@@ -1,0 +1,2 @@
+"patient_id","observations","positive_time_rows","baseline_cd4_rows","censored_viral_rows","cd4_sd_depends_on_prediction"
+"3",16,12,2,1,TRUE

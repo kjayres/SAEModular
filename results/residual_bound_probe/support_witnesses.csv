@@ -1,0 +1,5 @@
+"context","lambda_fraction","log_lambda","log_critical_lambda","log_likelihood","log_population_density","conditional_invalid_probability_given_other_anchor_coordinates"
+"comparator_chain01_retained0750",0.5,-0.683173202949747,0.00997397761019839,-Inf,-18.8787245413432,3.60558223376317e-06
+"comparator_chain01_retained0750",0.9,-0.0953865380476279,0.00997397761019839,-Inf,-13.6356669386253,3.60558223376317e-06
+"comparator_chain03_retained0750",0.5,-1.85940237580288,-1.16625519524293,-Inf,-37.1136100575554,9.08676044346699e-12
+"comparator_chain03_retained0750",0.9,-1.27161571090076,-1.16625519524293,-Inf,-29.9170068881619,9.08676044346699e-12
