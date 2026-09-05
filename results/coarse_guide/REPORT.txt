@@ -1,0 +1,7 @@
+Coarse-tolerance guide preflight, not retained Bayesian sampling.
+Exact calls: 1728
+Guide calls: 5184
+Qualifying profiles: 2
+Elapsed seconds: 34.612
+Residual differences are evaluated on fixed proposal-design states, not conditional posterior draws.
+No modularity, new-population-model reuse or full uncertainty claim follows from this preflight.

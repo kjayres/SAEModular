@@ -4,6 +4,18 @@ The objective is useful Bayesian population uncertainty and reusable expensive
 forward calculations. Engineering is subordinate to demonstrating computational
 and statistical benefit. Nothing here establishes a general modular Bayes solution.
 
+## Current: coarse-guide patient sampling pilot
+
+The [coarse ODE guide screen](COARSE_GUIDE_RESULT.md) passed: the selected guide
+was about 3.1 times cheaper across nine patient/shared-context cases. That is
+not a sampling speedup. The implementation smoke passed, and a
+[frozen conditional-chain comparison](COARSE_GUIDE_CHAIN_CONTRACT.md) now tests
+actual patient population-score mixing and total CPU cost in job **122254**
+(three patients, three fixed shared contexts, four seeds per method). All exact endpoints
+use the sealed target. No neural network, density bank or certified bound is
+required. A pass would only justify a later cross-population-model reuse test;
+modular Bayes, not single-model chain speed, remains the objective.
+
 ## Reduced posterior experiment: no-go at tested budget
 
 All eight chains completed in job 122242. Neither arm passed convergence;
@@ -32,7 +44,7 @@ All nine compact components failed the 80%-collapse aspiration. The most
 favourable upper confidence ceilings for the three patients were 23%, 38% and
 15%. This fitted local Gaussian route is also parked; the general residual
 identity is not disproved. See the [contract](RESIDUAL_CEILING_CONTRACT.md) and
-[compact evidence](results/residual_ceiling). No research experiment is running.
+[compact evidence](results/residual_ceiling). This residual branch is not running.
 
 This repository is the bounded methods testbed. Promote validated components to
 the main modular Bayes work only after the relevant posterior-accuracy and total-
@@ -74,6 +86,9 @@ sbatch --parsable --export=ALL,SMOKE=1 slurm/system_a_shared_pool_chain.sbatch
 sbatch --parsable slurm/system_a_shared_pool_chain.sbatch
 sbatch --parsable slurm/system_a_residual_bound_probe.sbatch
 sbatch --parsable slurm/system_a_residual_ceiling.sbatch
+sbatch --parsable slurm/system_a_coarse_guide.sbatch
+sbatch --parsable --export=ALL,SMOKE=1 slurm/system_a_coarse_chain.sbatch
+sbatch --parsable slurm/system_a_coarse_chain.sbatch
 ```
 
 The experiment driver also accepts `--replay-saved <completed-source-dir>` before

@@ -1,0 +1,4 @@
+"profile","median_cpu_speedup","minimum_cpu_speedup","worst_residual_difference95","passing_cases","cases","chain_pilot_go"
+"rtol_1e1",3.09927360774836,2.69090909090911,0.934647122095353,9,9,TRUE
+"rtol_1e2",2.59570312500006,2.17412935323383,0.0935465374928048,9,9,TRUE
+"rtol_1e4",1.57354758961674,1.53828032979983,0.0024095843616454,9,9,FALSE
