@@ -332,6 +332,7 @@ sab_load_system_a_adapter <- function(workspace_root, patient_ids = NULL) {
         ),
         prior_reference = list(
           eta = manifest$priors$eta_normal_mean,
+          eta_sd = manifest$priors$eta_normal_sd,
           psi = upstream$sysa_default_psi_reference(
             manifest$processed_data
           )

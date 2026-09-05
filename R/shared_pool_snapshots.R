@@ -1,8 +1,14 @@
-# Two predeclared, coherent joint draws from the Bayesian System A comparator.
+# Coherent joint draws from the Bayesian System A comparator. The default
+# chains preserve the original two-context feasibility screen.
 # This supplies an oracle feasibility design, not deployable initialization or
 # independent conditional banks. The caller must reevaluate the sealed target.
 
-sab_shared_pool_snapshots <- function(workspace_root, adapter) {
+sab_shared_pool_snapshots <- function(workspace_root, adapter, chains = c(1L, 3L)) {
+  if (!is.numeric(chains) || !length(chains) || !is.null(dim(chains)) ||
+      anyNA(chains) || any(!chains %in% 1:4) || anyDuplicated(chains)) {
+    stop("chains must be a nonempty unique selection from 1:4.", call. = FALSE)
+  }
+  chains <- as.integer(chains)
   sab_validate_system_a_adapter(adapter)
   if (length(adapter$patient_ids) != 115L) {
     stop("Shared-pool snapshots require the full 115-patient adapter.",
@@ -11,11 +17,12 @@ sab_shared_pool_snapshots <- function(workspace_root, adapter) {
   run <- "hiv_current_1000w1000s_20260506_120805"
   directory <- file.path(workspace_root, "projects", "full_joint_model",
                          "stan", "outputs", run)
-  chains <- c(1L, 3L)
   hashes <- c(
     "18b96caccb71b4dd5391286889286451e7b5c075622993355bddfe6e283e54d7",
-    "46240f79d182078869e9af802e214f2ae97327b6baa0f32b00b92a61ef41a198"
-  )
+    "ec57dcde7563b9a5ecfb165cdfccc8808d08b59dc2b01ff48af32fbc15e83ee2",
+    "46240f79d182078869e9af802e214f2ae97327b6baa0f32b00b92a61ef41a198",
+    "905a501289cb65c28ea086593d8282fc26f3a152719b7e71fd0280e933319e59"
+  )[chains]
   patient_hash <-
     "f3e773f466844a5ed9742a97c26b8b9c3389fbc2371bd2c48f2b04e8b017fab5"
   locations <- c("mu_log_lambda", "mu_log_mu_t", "mu_log_mu_a", "mu_log_p",

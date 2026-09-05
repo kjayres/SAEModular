@@ -1,5 +1,13 @@
 source(file.path(core_root, "R", "shared_pool_snapshots.R"), local = FALSE)
 
+test_that("snapshot selection preserves the original default and rejects ambiguity", {
+  expect_identical(eval(formals(sab_shared_pool_snapshots)$chains), c(1L, 3L))
+  for (chains in list(integer(), c(1L, 1L), c(1L, 5L), 1.5, NA_integer_, "1")) {
+    expect_error(sab_shared_pool_snapshots("unused", NULL, chains),
+                 "unique selection from 1:4", fixed = TRUE)
+  }
+})
+
 test_that("snapshot rows preserve joint values and requested column order", {
   path <- tempfile(fileext = ".csv")
   on.exit(unlink(path), add = TRUE)

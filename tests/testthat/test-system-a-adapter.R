@@ -125,6 +125,13 @@ testthat::test_that("certified System A callbacks load for a patient subset", {
   )
   testthat::expect_true(adapter$eta_in_domain(adapter$prior_reference$eta))
   testthat::expect_true(adapter$psi_in_domain(adapter$prior_reference$psi))
+  testthat::expect_identical(names(adapter$prior_reference$eta_sd),
+                             adapter$coordinate_names$population)
+  testthat::expect_true(all(is.finite(adapter$prior_reference$eta_sd) &
+                             adapter$prior_reference$eta_sd > 0))
+  upstream <- get("upstream", envir = environment(adapter$solve_prediction))
+  testthat::expect_identical(adapter$prior_reference$eta_sd,
+    upstream$sysam_target_specification()$priors$eta_normal_sd)
 
   patient_id <- adapter$patient_ids[[1L]]
   local_state <- adapter$population_mean(
